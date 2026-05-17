@@ -2,26 +2,33 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bonx Banx: Real Rules Edition</title>
     <style>
-        body {
+        /* 画面全体のスクロールや、指2本での拡大を完全に禁止 */
+        html, body {
+            margin: 0;
+            padding: 10px 0;
             background-color: #1a1a1a;
             color: #f0f0f0;
             font-family: 'Courier New', monospace;
             text-align: center;
-            margin: 0;
-            padding: 10px 0;
-            user-select: none;
-            -webkit-user-select: none;
+            overflow: hidden; /* 画面外へのハミ出しスクロールを禁止 */
+            touch-action: none; /* ブラウザ特有のジェスチャー操作（ズーム等）をすべて無効化 */
         }
+        
         #game-container {
             width: 100%;
             max-width: 340px;
             margin: 0 auto;
             box-sizing: border-box;
             padding: 0 10px;
+            /* スマホでのテキスト長押し選択を徹底ガード */
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
         }
+        
         #hud {
             display: flex;
             justify-content: space-between;
@@ -34,10 +41,12 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             margin-bottom: 8px;
         }
+        
         #canvas-wrapper {
             width: 100%;
             margin-bottom: 15px;
         }
+        
         canvas {
             background-color: #0d0d11;
             border: 5px solid #5a2a2a;
@@ -48,6 +57,7 @@
             image-rendering: pixelated;
             box-shadow: 0 6px 12px rgba(0,0,0,0.5);
         }
+        
         #controller {
             margin: 10px auto;
             display: grid;
@@ -56,6 +66,8 @@
             gap: 12px;
             justify-content: center;
         }
+        
+        /* 十字キーのボタン設定 */
         .btn {
             background: linear-gradient(145deg, #3a3a3a, #262626);
             border: 2px solid #444;
@@ -67,12 +79,20 @@
             justify-content: center;
             box-shadow: 0 5px 0 #1a1a1a;
             transition: all 0.05s ease;
+            
+            /* 【重要】ボタン連打時のダブルタップズームや長押しメニューを完全に無効化 */
+            touch-action: manipulation; 
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none; /* リンク長押しのポップアップを禁止 */
         }
+        
         .btn:active {
             transform: translateY(3px);
             box-shadow: 0 2px 0 #1a1a1a;
             background: #222;
         }
+        
         #btn-up { grid-column: 2; grid-row: 1; }
         #btn-left { grid-column: 1; grid-row: 2; }
         #btn-right { grid-column: 3; grid-row: 2; }
@@ -182,7 +202,6 @@ function startBGM() {
     }, 100);
 }
 
-// 🗺️ ステージデータ（上ルートもしっかり開通させた状態をキープしています）
 const STAGES = {
     1: [
         "################",
@@ -269,7 +288,7 @@ const STAGES = {
         "################"
     ],
     7: [
-        "誠###############",
+        "################",
         "#G...B....B...P#",
         "####.#.##.#.####",
         "#....#.#..#....#",
@@ -297,7 +316,7 @@ const STAGES = {
         "################"
     ],
     9: [
-        "横##############",
+        "################",
         "#P...#..E..#...#",
         "#....B.....B...#",
         "###.#########.##",
@@ -326,7 +345,6 @@ const STAGES = {
     ]
 };
 
-// --- 🎨 グラフィックデータ ---
 const newArt = {
     player: [
         "....KKKK........", "...KOWWOK.......", "..KOWWWWOK......", ".KWWKWWKWWK.....",
@@ -465,7 +483,6 @@ function parseTextMap(stageLines) {
             } else if (char === "G") {
                 goalX = x;
                 goalY = y;
-                // ここは重要：ゴール判定エリア（9）を設定
                 for(let hgY=0; hgY<4; hgY++) {
                     for(let hgX=0; hgX<4; hgX++) {
                         if(y + hgY < 24 && x + hgX < 32) {
@@ -598,8 +615,7 @@ function updateEnemy() {
         if (enemyDir > 7) enemyDir = 1;
     }
 
-    // 🔥【重要修正】クリア判定をプレイヤー(player)から敵(enemy)に変更！！
-    // 敵が家のエリア（9）に接触したらステージクリア！
+    // 敵が家（G）に接触したらクリア
     if (map[enemy.y][enemy.x] === 9) {
         if(bgmInterval) clearInterval(bgmInterval);
         
@@ -613,7 +629,6 @@ function updateEnemy() {
         return;
     }
 
-    // プレイヤーが敵に捕まったらゲームオーバー（ここはそのまま）
     if (Math.abs(enemy.x - player.x) < 2 && Math.abs(enemy.y - player.y) < 2) {
         if(bgmInterval) clearInterval(bgmInterval);
         playSound(220.00, 0.6, 'sawtooth');
@@ -800,6 +815,7 @@ function movePlayer(dx, dy) {
 
 function bindBtn(id, dx, dy) {
     const btn = document.getElementById(id);
+    // iOS等での誤動作を防ぐため touchstart で処理
     btn.addEventListener("touchstart", (e) => {
         e.preventDefault();
         movePlayer(dx, dy);
