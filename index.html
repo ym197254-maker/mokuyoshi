@@ -97,6 +97,13 @@
         #btn-left { grid-column: 1; grid-row: 2; }
         #btn-right { grid-column: 3; grid-row: 2; }
         #btn-down { grid-column: 2; grid-row: 3; }
+        
+        #info {
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -116,6 +123,11 @@
         <div class="btn" id="btn-left">◀</div>
         <div class="btn" id="btn-right">▶</div>
         <div class="btn" id="btn-down">▼</div>
+    </div>
+
+    <div id="info">
+        💻 PC: [矢印キー] または [WASD] で選択・移動 / [Enter] でスタート<br>
+        📱 スマホ / 🖱️ マウス: 画面のボタンをタップ・クリック
     </div>
 </div>
 
@@ -171,7 +183,14 @@ function initAudio() {
 }
 
 function playSound(freq, duration, type = 'square') {
+    initAudio(); // 操作時に確実にオーディオをアクティブにする
     if (!audioCtx || freq === 0) return;
+    
+    // サスペンド状態（ブラウザの自動再生ブロック）なら復帰させる
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type; 
@@ -813,16 +832,51 @@ function movePlayer(dx, dy) {
     draw();
 }
 
+// 💻 【PC用】キーボードでの操作（矢印キー ＆ WASDキーに対応）
+window.addEventListener("keydown", (e) => {
+    // 画面スクロール（矢印、スペース、Enterなど）を防ぐ
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", " ", "w", "a", "s", "d", "W", "A", "S", "D"].includes(e.key)) {
+        e.preventDefault();
+    }
+    
+    // タイトル画面でEnterが押された時もスタートできるようにする
+    if (gameState === "TITLE" && e.key === "Enter") {
+        handleTitleInput("START");
+        return;
+    }
+
+    switch (e.key.toLowerCase()) {
+        case "arrowup":
+        case "w":
+            movePlayer(0, -1);
+            break;
+        case "arrowdown":
+        case "s":
+            movePlayer(0, 1);
+            break;
+        case "arrowleft":
+        case "a":
+            movePlayer(-1, 0);
+            break;
+        case "arrowright":
+        case "d":
+            movePlayer(1, 0);
+            break;
+    }
+});
+
+// 📱🖱️ 【スマホ・PC兼用】ポインターイベントへの変更
+// pointerdown を使うことで、スマホのタップとマウスのクリック両方に1本のコードで完全対応します。
 function bindBtn(id, dx, dy) {
     const btn = document.getElementById(id);
-    // iOS等での誤動作を防ぐため touchstart で処理
-    btn.addEventListener("touchstart", (e) => {
+    btn.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         movePlayer(dx, dy);
     });
 }
 
-canvas.addEventListener("touchstart", (e) => {
+// 画面中央（キャンバス）を直接タップ・クリックした時の処理
+canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     if (gameState === "TITLE") handleTitleInput("START");
 });
