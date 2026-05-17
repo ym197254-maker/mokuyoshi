@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Bonx Banx: Real Rules Edition</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            margin: 0;
+            padding: 10px 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 340px;
+            margin: 0 auto;
+            box-sizing: border-box;
+            padding: 0 10px;
+        }
+        #hud {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 14px;
+            font-size: 15px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 8px;
+        }
+        #canvas-wrapper {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        canvas {
+            background-color: #0d0d11;
+            border: 5px solid #5a2a2a;
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+            display: block;
+            image-rendering: pixelated;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.5);
+        }
+        #controller {
+            margin: 10px auto;
+            display: grid;
+            grid-template-columns: repeat(3, 62px);
+            grid-template-rows: repeat(3, 62px);
+            gap: 12px;
+            justify-content: center;
+        }
+        .btn {
+            background: linear-gradient(145deg, #3a3a3a, #262626);
+            border: 2px solid #444;
+            color: #fff;
+            font-size: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 0 #1a1a1a;
+            transition: all 0.05s ease;
+        }
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #1a1a1a;
+            background: #222;
+        }
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 3; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div>SCORE: <span id="score">0</span></div>
+        <div>ROUND: <span id="round">1</span></div>
+    </div>
+    
+    <div id="canvas-wrapper">
+        <canvas id="gameCanvas" width="512" height="384"></canvas>
+    </div>
+    
+    <div id="controller">
+        <div class="btn" id="btn-up">▲</div>
+        <div class="btn" id="btn-left">◀</div>
+        <div class="btn" id="btn-right">▶</div>
+        <div class="btn" id="btn-down">▼</div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const SCALE = 2; 
+let score = 0;
+let round = 1;
+let selectedRound = 1; 
+let player = { x: 18, y: 18 };
+let enemy = { x: 4, y: 8 }; 
+let enemyDir = 1; 
+
+let gameTimer = null; 
+let titleTimer = null; 
+let goalX = 2;
+let goalY = 2;
+
+let gameState = "TITLE"; 
+let readyTimerCount = 0;
+let clearTimerCount = 0;
+let blinkState = true;
+
+let audioCtx = null;
+let bgmInterval = null;
+let isAudioInit = false;
+
+const bgmSequence = [
+    {f: 523.25, d: 1}, {f: 587.33, d: 1}, {f: 659.25, d: 1}, {f: 698.46, d: 1}, 
+    {f: 783.99, d: 2}, {f: 0,      d: 1}, {f: 783.99, d: 1}, 
+    {f: 880.00, d: 1}, {f: 783.99, d: 1}, {f: 698.46, d: 1}, {f: 659.25, d: 1},
+    {f: 587.33, d: 4},
+    
+    {f: 493.88, d: 1}, {f: 523.25, d: 1}, {f: 587.33, d: 1}, {f: 659.25, d: 1}, 
+    {f: 698.46, d: 2}, {f: 0,      d: 1}, {f: 698.46, d: 1}, 
+    {f: 783.99, d: 1}, {f: 698.46, d: 1}, {f: 659.25, d: 1}, {f: 587.33, d: 1},
+    {f: 523.25, d: 4},
+
+    {f: 523.25, d: 2}, {f: 659.25, d: 2}, {f: 783.99, d: 3}, {f: 880.00, d: 1},
+    {f: 987.77, d: 2}, {f: 880.00, d: 2}, {f: 783.99, d: 4},
+    {f: 698.46, d: 2}, {f: 659.25, d: 2}, {f: 587.33, d: 2}, {f: 493.88, d: 2},
+    {f: 523.25, d: 4}, {f: 0,      d: 4}
+];
+let bgmStep = 0;
+let bgmTicks = 0;
+
+function initAudio() {
+    if (isAudioInit) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    isAudioInit = true;
+}
+
+function playSound(freq, duration, type = 'square') {
+    if (!audioCtx || freq === 0) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type; 
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.06, audioCtx.currentTime); 
+    gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+function startBGM() {
+    if (bgmInterval) clearInterval(bgmInterval);
+    bgmStep = 0;
+    bgmTicks = 0;
+    bgmInterval = setInterval(() => {
+        if (gameState !== "PLAYING") return; 
+        if (bgmTicks === 0) {
+            let note = bgmSequence[bgmStep];
+            if (note.f > 0) {
+                playSound(note.f, note.d * 0.09, 'square'); 
+            }
+            bgmTicks = note.d;
+            bgmStep = (bgmStep + 1) % bgmSequence.length;
+        }
+        bgmTicks--;
+    }, 100);
+}
+
+// 🗺️ ステージデータ（上ルートもしっかり開通させた状態をキープしています）
+const STAGES = {
+    1: [
+        "################",
+        "#G....C........#",
+        "#..............#",
+        "#.......C......#",
+        "#.....B.......E#",
+        "#.......#......#",
+        "##......######.#",
+        "#..............#",
+        "#....C...B.....#",
+        "#..............#",
+        "#...........P..#",
+        "################"
+    ],
+    2: [
+        "################",
+        "#P...#....#...G#",
+        "#....B....B....#",
+        "#....#..C.#....#",
+        "###.########.###",
+        "#..............#",
+        "#....B....B....#",
+        "#...C#....#C...#",
+        "##.##########.##",
+        "#.......E......#",
+        "#..............#",
+        "################"
+    ],
+    3: [
+        "################",
+        "#G..............#", 
+        "#.......#.#####.#",
+        "#...#C#..B...#.#",
+        "#####.##.#.#.#.#",
+        "#........#.#.#.#",
+        "#.########...#.#",
+        "#.#......B.#.#.#",
+        "#.#.####.#.#.#.#",
+        "#...#..C...#.P.#",
+        "###.E.##########",
+        "################"
+    ],
+    4: [
+        "################",
+        "#P......#......#",
+        "#..B....#....B.#",
+        "#.###.......###.#",
+        "#.#...CCCCC...#.#",
+        "#.#...C...C...#.#",
+        "#....BC.E.CB....#",
+        "#.#...C...C...#.#",
+        "#.#...CCCCC...#.#",
+        "#.###.......###.#",
+        "#...B...#......G#",
+        "################"
+    ],
+    5: [
+        "################",
+        "#G..#.......#..#",
+        "#...B...E...B..#",
+        "##.###.###.###.#",
+        "#...#...#...#..#",
+        "#C..B...P...B.C#",
+        "##.###.###.###.#",
+        "#...#...#...#..#",
+        "#...B.......B..#",
+        "##.###########.#",
+        "#..............#",
+        "################"
+    ],
+    6: [
+        "################",
+        "#P.#...E....#.G#",
+        "#..#........#..#",
+        "#..B...##...B..#",
+        "#..#..#CC#..#..#",
+        "#.....#CC#.....#",
+        "####..####..####",
+        "#..............#",
+        "#....B....B....#",
+        "#....#....#....#",
+        "#......C.......#",
+        "################"
+    ],
+    7: [
+        "誠###############",
+        "#G...B....B...P#",
+        "####.#.##.#.####",
+        "#....#.#..#....#",
+        "#..B.B.#..B.B..#",
+        "#..#.C.#.C.#..#",
+        "#..#.###.###..#",
+        "#..#..........#",
+        "##.##.B..B.B.###",
+        "#.....#..#.#..E#",
+        "#..C...........#",
+        "################"
+    ],
+    8: [
+        "################",
+        "#E......#......#",
+        "#..CCC..#..CCC.#",
+        "#..C#C..#..C#C.#",
+        "#..CCC..B..CCC.#",
+        "#######.#.######",
+        "#.......#......#",
+        "#..B.######.B..#",
+        "#..#...G....#..#",
+        "#..##########..#",
+        "#.......P......#",
+        "################"
+    ],
+    9: [
+        "横##############",
+        "#P...#..E..#...#",
+        "#....B.....B...#",
+        "###.#########.##",
+        "#C...#..G..#..C#",
+        "#....B.....B...#",
+        "#.##########.###",
+        "#....#.....#...#",
+        "#....B..C..B...#",
+        "##.##########.##",
+        "#..............#",
+        "################"
+    ],
+    10: [
+        "################",
+        "#G...#..C..#..E#",
+        "###..#.....#..##",
+        "#....B..B..B...#",
+        "#..###.###.###.#",
+        "#....#..P..#...#",
+        "#..B.B.....B.B.#",
+        "#..#.#######.#.#",
+        "#..#..C...C..#.#",
+        "#..B.........B.#",
+        "#..............#",
+        "################"
+    ]
+};
+
+// --- 🎨 グラフィックデータ ---
+const newArt = {
+    player: [
+        "....KKKK........", "...KOWWOK.......", "..KOWWWWOK......", ".KWWKWWKWWK.....",
+        ".KWWWKWWKWWK....", "KBBKWWWWKBBK....", "KBBBBBBBBBBK....", "KBKBKBKBKBKBK...",
+        "KBKBKBKBKBKBK...", "KBBBBBBBBBBK....", "KBBKKBBKKBBK....", "KBBKKBBKKBBK....",
+        ".KKKKKKKKKK.....", "...KWWKWWK......", "...KKWKWKK......", "................"
+    ],
+    enemy: [
+        "....KKKK........", "...KRRRWK.......", "..KRRWWWKKK.....", ".KRWWWRWRKKK....",
+        ".KRRWRRRWRRK....", "KRRRRWRRRWRRK...", "KRRRRRWWWWRK....", "KRRRRRRWRRK.....",
+        "KRRRRRRKRRRK....", "KRRRRKKKKRRRK...", ".KRRKYYYYKRK....", "...KYYYYYKK.....",
+        "....KRRRRK......", "....KKRRKK......", ".....KKKK.......", "................"
+    ],
+    wall1: [
+        "KKKKKKKK", "KRRRWKKK", "KRRRRDKK", "KRRRRDKK",
+        "KKKKKKKK", "DDKDDDDD", "KKKKKKKK", "KRRRWKKK"
+    ],
+    wall2: [
+        "DDKDDDDD", "KKKKKKKK", "KRRRWKKK", "KKKKKKKK",
+        "KRRRWKKK", "KRRRRDKK", "KRRRRDKK", "KKKKKKKK"
+    ],
+    block: [
+        "KKKKKKKKKKKKKKKK", "KLWWWWWWWWWLLLBK", "KLWWWWWWWWWLLLBK", "KLWWWLLLLLLWLLBK",
+        "KLWWWLLLLLLWLLBK", "KLWWWLLBBLWWLLBK", "KLWWWLLLLLWLLBK ", "KLWWWLLLLLWLLBK ",
+        "KLWWWLLLLLWLLBK ", "KLWWWLLBBLWWLLBK", "KLWWWLLLLLWLLBK ", "KLWWWLLLLLWLLBK ",
+        "KLWWWLLLLLWLLBK ", "KLLLLLLLLLLLBBK ", "KKKKKKKKKKKKKKKK", "................"
+    ],
+    house: [
+        "................................", "..............KKKK..............", ".............KRRRWK.............", "............KRRRRRWK............",
+        "...........KRRRRRRRWK...........", "..........KRRRRRRRRRWK..........", ".........KRRRRRRRRRRRWK.........", "........KRRRRRRRRRRRRRWK........",
+        ".......KRRRRRRRRRRRRRRRWK.......", "......KRRRRRRRRRRRRRRRRRWK......", ".....KRRRRRRRRRRRRRRRRRRRWK.....", "....KKKKKKKKKKKKKKKKKKKKKKKK....",
+        "....KCCCCCCCCCCCCCCCCCCCCCCK....", "....KCCKWWKCCKWWKCCKWWKCCCCK....", "....KCCKWOKCCKWOKCCKWOKCCCCK....", "....KCCKWWKCCKWWKCCKWWKCCCCK....",
+        "....KCCCCCCCCCCCCCCCCCCCCCCK....", "....KCCCCCCKWWWWKCCCCCCCCCCK....", "....KCCCCCCKWYYWKCCCCCCCCCCK....", "....KCCCCCCKWYYWKCCCCCCCCCCK....", "....KCCCCCCKWWWWKCCCCCCCCCCK....", "....KKKKKKKKKKKKKKKKKKKKKKKK...."
+    ],
+    carrot: [
+        "................", "......KK........", ".....KGGK...KK..", "......KGGK KGGK.",
+        ".....KGGGGGGGKK.", "....KOOOOOWWWOK.", "...KOOOOOOWWWOK.", "...KOOOWWOWWWOK.",
+        "....KOOWWOWWWOK.", "....KOOOOOOWOK..", ".....KOOOOWOK...", ".....KOOOOWOK...",
+        "......KOOWK.....", "......KOOWK.....", ".......KKK......", "................"
+    ]
+};
+
+function drawCustomArt(artArray, targetX, targetY, type, blink = false) {
+    if (blink && !blinkState) return; 
+
+    let size = artArray.length;
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            let char = artArray[r][c];
+            if (char === ".") continue; 
+            
+            if (type === "player") {
+                if(char === "K") ctx.fillStyle = "#000000";
+                else if(char === "W") ctx.fillStyle = "#ffffff";
+                else if(char === "O") ctx.fillStyle = "#ff6600";
+                else if(char === "B") ctx.fillStyle = "#0000cc";
+            }
+            else if (type === "enemy") {
+                if(char === "K") ctx.fillStyle = "#000000";
+                else if(char === "R") ctx.fillStyle = "#cc0000";
+                else if(char === "W") ctx.fillStyle = "#ffffff";
+                else if(char === "Y") ctx.fillStyle = "#ffff00";
+            }
+            else if (type === "carrot") {
+                if(char === "K") ctx.fillStyle = "#000000";
+                else if(char === "G") ctx.fillStyle = "#00cc00";
+                else if(char === "O") ctx.fillStyle = "#ff6600";
+                else if(char === "W") ctx.fillStyle = "#ffffff";
+            }
+            else if (type === "house") {
+                if(char === "K") ctx.fillStyle = "#000000";
+                else if(char === "R") ctx.fillStyle = "#cc0000";
+                else if(char === "D") ctx.fillStyle = "#552211";
+                else if(char === "C") ctx.fillStyle = "#8a6d55";
+                else if(char === "W") ctx.fillStyle = "#ffffff";
+                else if(char === "O") ctx.fillStyle = "#ff6600";
+                else if(char === "Y") ctx.fillStyle = "#ffff00";
+            }
+            else if (type === "block") {
+                if(char === "K") ctx.fillStyle = "#000000";
+                else if(char === "B") ctx.fillStyle = "#0000aa";
+                else if(char === "L") ctx.fillStyle = "#0000ff";
+                else if(char === "W") ctx.fillStyle = "#ffffff";
+            }
+            else if (type === "wall") {
+                if(char === "K") ctx.fillStyle = "#000000";
+                else if(char === "R") ctx.fillStyle = "#cc0000";
+                else if(char === "D") ctx.fillStyle = "#552211";
+            }
+            ctx.fillRect((targetX * 8 + c) * SCALE, (targetY * 8 + r) * SCALE, SCALE, SCALE);
+        }
+    }
+}
+
+let map = Array(24).fill().map(() => Array(32).fill(0));
+let movableBlocks = [];
+
+function placeMovableBlock(x, y) {
+    map[y][x] = 2; map[y][x+1] = 2;
+    map[y+1][x] = 2; map[y+1][x+1] = 2;
+    movableBlocks.push({x: x, y: y});
+}
+
+function placeCarrot(x, y) {
+    map[y][x] = 3; map[y][x+1] = 3;
+    map[y+1][x] = 3; map[y+1][x+1] = 3;
+}
+
+function parseTextMap(stageLines) {
+    movableBlocks = []; 
+    for(let y=0; y<24; y++) {
+        for(let x=0; x<32; x++) {
+            map[y][x] = 0;
+        }
+    }
+
+    for (let ty = 0; ty < 12; ty++) {
+        const line = stageLines[ty] || "................";
+        for (let tx = 0; tx < 16; tx++) {
+            const char = line[tx] || ".";
+            let x = tx * 2;
+            let y = ty * 2;
+
+            if (char === "#") {
+                map[y][x] = 1;   map[y][x+1] = 1;
+                map[y+1][x] = 1; map[y+1][x+1] = 1;
+            } else if (char === "B") {
+                placeMovableBlock(x, y);
+            } else if (char === "C") {
+                placeCarrot(x, y);
+            } else if (char === "P") {
+                player = { x: x, y: y };
+            } else if (char === "E") {
+                enemy = { x: x, y: y };
+                enemyDir = (round % 3 === 0) ? 7 : (round % 2 === 0) ? 5 : 1;
+            } else if (char === "G") {
+                goalX = x;
+                goalY = y;
+                // ここは重要：ゴール判定エリア（9）を設定
+                for(let hgY=0; hgY<4; hgY++) {
+                    for(let hgX=0; hgX<4; hgX++) {
+                        if(y + hgY < 24 && x + hgX < 32) {
+                            map[y + hgY][x + hgX] = 9;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function initTitleScreen() {
+    gameState = "TITLE";
+    if(gameTimer) clearInterval(gameTimer);
+    if(titleTimer) clearInterval(titleTimer);
+
+    titleTimer = setInterval(() => {
+        if(gameState === "TITLE") {
+            blinkState = !blinkState;
+            draw();
+        }
+    }, 400);
+}
+
+function startGame() {
+    if(titleTimer) clearInterval(titleTimer);
+    initAudio();
+    round = selectedRound; 
+    score = 0;
+    document.getElementById("score").innerText = score;
+    initStage();
+}
+
+function initStage() {
+    if(gameTimer) clearInterval(gameTimer); 
+
+    const stageLines = STAGES[round] || STAGES[1];
+    parseTextMap(stageLines);
+    
+    document.getElementById("round").innerText = round;
+
+    gameState = "START_READY";
+    readyTimerCount = 0;
+    blinkState = true;
+
+    gameTimer = setInterval(() => {
+        if (gameState === "START_READY") {
+            readyTimerCount++;
+            if (readyTimerCount >= 6) { 
+                gameState = "PLAYING";
+                startBGM();
+            }
+            draw();
+        } else if (gameState === "PLAYING") {
+            updateEnemy();
+            draw();
+        } else if (gameState === "STAGE_CLEAR_PERFORM") {
+            clearTimerCount++;
+            if (clearTimerCount >= 10) { 
+                round++;
+                if(!STAGES[round]) round = 1; 
+                initStage();
+            }
+            draw();
+        } else if (gameState === "GAMEOVER_BLINKING") {
+            readyTimerCount++;
+            blinkState = !blinkState; 
+            if (readyTimerCount >= 8) { 
+                initTitleScreen(); 
+            }
+            draw();
+        }
+    }, 250);
+}
+
+function updateEnemy() {
+    let dx = 0, dy = 0;
+    if (enemyDir === 7) dx = 2;
+    if (enemyDir === 3) dx = -2;
+    if (enemyDir === 1) dy = 2;
+    if (enemyDir === 5) dy = -2;
+
+    let nextX = enemy.x + dx;
+    let nextY = enemy.y + dy;
+
+    let isBlocked = false;
+    for (let ey = 0; ey < 2; ey++) {
+        for (let ex = 0; ex < 2; ex++) {
+            if (nextY + ey >= 24 || nextX + ex >= 32 || nextY < 0 || nextX < 0) {
+                isBlocked = true;
+                break;
+            }
+            let checkTile = map[nextY + ey][nextX + ex];
+            if (checkTile === 1 || checkTile === 2) {
+                isBlocked = true;
+            }
+        }
+    }
+
+    if (!isBlocked) {
+        enemy.x = nextX;
+        enemy.y = nextY;
+
+        let ateCarrot = false;
+        for (let ey = 0; ey < 2; ey++) {
+            for (let ex = 0; ex < 2; ex++) {
+                if (map[enemy.y + ey][enemy.x + ex] === 3) {
+                    ateCarrot = true;
+                }
+            }
+        }
+
+        if (ateCarrot) {
+            let targetMapX = Math.floor(enemy.x / 2) * 2;
+            let targetMapY = Math.floor(enemy.y / 2) * 2;
+            for(let py=0; py<2; py++) {
+                for(let px=0; px<2; px++) {
+                    map[targetMapY + py][targetMapX + px] = 0;
+                }
+            }
+            score += 500; 
+            document.getElementById("score").innerText = score;
+            playSound(180, 0.05, 'square');
+            setTimeout(() => playSound(120, 0.05, 'square'), 60);
+        }
+
+    } else {
+        enemyDir += 2;
+        if (enemyDir > 7) enemyDir = 1;
+    }
+
+    // 🔥【重要修正】クリア判定をプレイヤー(player)から敵(enemy)に変更！！
+    // 敵が家のエリア（9）に接触したらステージクリア！
+    if (map[enemy.y][enemy.x] === 9) {
+        if(bgmInterval) clearInterval(bgmInterval);
+        
+        playSound(523.25, 0.1, 'square');
+        setTimeout(() => playSound(659.25, 0.1, 'square'), 100);
+        setTimeout(() => playSound(783.99, 0.1, 'square'), 200);
+        setTimeout(() => playSound(1046.50, 0.4, 'square'), 300);
+
+        gameState = "STAGE_CLEAR_PERFORM";
+        clearTimerCount = 0;
+        return;
+    }
+
+    // プレイヤーが敵に捕まったらゲームオーバー（ここはそのまま）
+    if (Math.abs(enemy.x - player.x) < 2 && Math.abs(enemy.y - player.y) < 2) {
+        if(bgmInterval) clearInterval(bgmInterval);
+        playSound(220.00, 0.6, 'sawtooth');
+        
+        gameState = "GAMEOVER_BLINKING";
+        readyTimerCount = 0; 
+        blinkState = true;
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (gameState === "TITLE") {
+        ctx.fillStyle = "#0d0d11";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = "#ffcc00";
+        ctx.font = "bold 40px 'Courier New'";
+        ctx.textAlign = "center";
+        ctx.fillText("BONX BANX", canvas.width / 2, 110);
+        
+        ctx.fillStyle = "#00ffff";
+        ctx.font = "bold 20px 'Courier New'";
+        ctx.fillText(`STAGE SELECT: < ROUND ${selectedRound} >`, canvas.width / 2, 190);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "16px 'Courier New'";
+        if (blinkState) {
+            ctx.fillText("PRESS ▲ OR ▼ TO START", canvas.width / 2, 250);
+        }
+        
+        ctx.fillStyle = "#555555";
+        ctx.font = "12px 'Courier New'";
+        ctx.fillText("(PRESS ◀ OR ▶ TO SELECT STAGE)", canvas.width / 2, 280);
+
+        ctx.fillStyle = "#888888";
+        ctx.font = "14px 'Courier New'";
+        ctx.fillText("REPLICATED BY GEMINI", canvas.width / 2, 340);
+        return;
+    }
+
+    for (let y = 0; y < 24; y++) {
+        for (let x = 0; x < 32; x++) {
+            if (map[y][x] === 1) {
+                let pattern = ((x + y) % 2 === 0) ? newArt.wall1 : newArt.wall2;
+                drawCustomArt(pattern, x, y, "wall");
+            }
+        }
+    }
+
+    for (let y = 0; y < 24; y++) {
+        for (let x = 0; x < 32; x++) {
+            if (map[y][x] === 3 && map[y-1]?.[x] !== 3 && map[y]?.[x-1] !== 3) {
+                drawCustomArt(newArt.carrot, x, y, "carrot");
+            }
+        }
+    }
+
+    movableBlocks.forEach(block => {
+        if (map[block.y][block.x] === 2) {
+            drawCustomArt(newArt.block, block.x, block.y, "block");
+        }
+    });
+
+    drawCustomArt(newArt.house, goalX, goalY, "house");
+
+    let isBlinking = (gameState === "GAMEOVER_BLINKING");
+    drawCustomArt(newArt.enemy, enemy.x, enemy.y, "enemy", isBlinking);
+    drawCustomArt(newArt.player, player.x, player.y, "player", isBlinking);
+    
+    if (gameState === "START_READY") {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(0, 140, canvas.width, 100);
+        
+        ctx.fillStyle = "#00ffff";
+        ctx.font = "bold 32px 'Courier New'";
+        ctx.textAlign = "center";
+        ctx.fillText(`ROUND ${round}`, canvas.width / 2, 185);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 18px 'Courier New'";
+        ctx.fillText("READY?", canvas.width / 2, 220);
+    }
+
+    if (gameState === "STAGE_CLEAR_PERFORM") {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(0, 140, canvas.width, 100);
+
+        ctx.fillStyle = "#ffcc00";
+        ctx.font = "bold 36px 'Courier New'";
+        ctx.textAlign = "center";
+        ctx.fillText("STAGE CLEAR !!", canvas.width / 2, 200);
+    }
+
+    if (gameState === "GAMEOVER_BLINKING") {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(0, 140, canvas.width, 100);
+
+        ctx.fillStyle = "#cc0000";
+        ctx.font = "bold 40px 'Courier New'";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width / 2, 200);
+    }
+}
+
+function handleTitleInput(action) {
+    if (action === "LEFT") {
+        selectedRound--;
+        if (selectedRound < 1) selectedRound = 10; 
+        playSound(440, 0.05, 'triangle');
+    } else if (action === "RIGHT") {
+        selectedRound++;
+        if (selectedRound > 10) selectedRound = 1; 
+        playSound(440, 0.05, 'triangle');
+    } else if (action === "START") {
+        startGame();
+    }
+    draw();
+}
+
+function movePlayer(dx, dy) {
+    if (gameState === "TITLE") {
+        if (dx === -1) handleTitleInput("LEFT");
+        if (dx === 1) handleTitleInput("RIGHT");
+        if (dy === -1 || dy === 1) handleTitleInput("START");
+        return;
+    }
+    if (gameState !== "PLAYING") return; 
+    
+    let nextX = player.x + dx * 2;
+    let nextY = player.y + dy * 2;
+    
+    if (nextY < 0 || nextY >= 24 || nextX < 0 || nextX >= 32) return;
+
+    let isWall = false;
+    let isBlock = false;
+
+    for (let py = 0; py < 2; py++) {
+        for (let px = 0; px < 2; px++) {
+            let tile = map[nextY + py][nextX + px];
+            if (tile === 1) isWall = true;
+            if (tile === 2) isBlock = true;
+        }
+    }
+    
+    if (!isWall) {
+        if (isBlock) {
+            let pushX = nextX + dx * 2;
+            let pushY = nextY + dy * 2;
+            
+            let canPush = true;
+            for (let py = 0; py < 2; py++) {
+                for (let px = 0; px < 2; px++) {
+                    if (pushY + py >= 24 || pushX + px >= 32 || map[pushY + py][pushX + px] !== 0) canPush = false;
+                }
+            }
+            
+            if (canPush) {
+                for(let py=0; py<2; py++) for(let px=0; px<2; px++) map[player.y + dy*2 + py][player.x + dx*2 + px] = 0;
+                
+                let oldBlockX = nextX;
+                let oldBlockY = nextY;
+                let bIndex = movableBlocks.findIndex(b => b.x === oldBlockX && b.y === oldBlockY);
+                if (bIndex !== -1) {
+                    movableBlocks[bIndex].x = pushX;
+                    movableBlocks[bIndex].y = pushY;
+                }
+
+                placeMovableBlock(pushX, pushY);
+                player.x = nextX;
+                player.y = nextY;
+                score += 10;
+                document.getElementById("score").innerText = score;
+                playSound(150, 0.1, 'triangle');
+            }
+        } else {
+            playSound(600, 0.03, 'triangle');
+            player.x = nextX;
+            player.y = nextY;
+        }
+    }
+    draw();
+}
+
+function bindBtn(id, dx, dy) {
+    const btn = document.getElementById(id);
+    btn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        movePlayer(dx, dy);
+    });
+}
+
+canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    if (gameState === "TITLE") handleTitleInput("START");
+});
+
+bindBtn("btn-up", 0, -1);
+bindBtn("btn-down", 0, 1);
+bindBtn("btn-left", -1, 0);
+bindBtn("btn-right", 1, 0);
+
+initTitleScreen();
+</script>
+</body>
+</html>
