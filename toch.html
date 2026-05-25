@@ -140,12 +140,51 @@
         .large-btn:active { box-shadow: 0 1px 0 #f368e0; }
         .sub-btn { background: #10ac84; color: #fff; padding: 10px; font-size: 13px; box-shadow: 0 4px 0 #01a3a4; width: 100%; }
         .sub-btn:active { box-shadow: 0 0px 0 #01a3a4; }
-        .danger-btn { background: #ff6b6b; color: #fff; padding: 10px; font-size: 13px; box-shadow: 0 4px 0 #ee5253; width: 100%; display: flex; align-items: center; justify-content: center; line-height: 1.2; }
+        .danger-btn {
+    background: linear-gradient(180deg, #ff8fab 0%, #ff5d8f 100%);
+    color: #fff;
+
+    width: 120px;
+    height: 58px;
+
+    border-radius: 18px;
+
+    font-size: 14px;
+    font-family: 'Fredoka One', 'Kosugi Maru', sans-serif;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    line-height: 1.15;
+
+    box-shadow:
+        0 5px 0 #d6336c,
+        0 8px 14px rgba(0,0,0,0.25);
+
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+
+    transition: transform 0.08s;
+}
+
+.danger-btn:active {
+    transform: translateY(3px);
+
+    box-shadow:
+        0 2px 0 #d6336c,
+        0 4px 8px rgba(0,0,0,0.2);
+}
         .danger-btn:active { box-shadow: 0 0px 0 #ee5253; }
         #author-text { margin-top: 15px; font-size: 11px; color: #a4b0be; }
 
         /* --- 下部アクションコンテナ --- */
-        #action-container { flex-shrink: 0; display: flex; gap: 8px; width: 100%; justify-content: space-between; margin-bottom: 2px; }
+        #action-container {
+    flex-shrink: 0;
+    display: flex;
+    width: 100%;
+    justify-content: flex-end;
+    margin-bottom: 4px;
+}
 
         /* --- 説明画面 --- */
         #instructions-screen { position: absolute; top: 5%; left: 5%; right: 5%; bottom: 5%; background-color: rgba(47, 53, 66, 0.95); border: 4px solid #1dd1a1; border-radius: 12px; z-index: 10; box-sizing: border-box; padding: 16px; text-align: left; box-shadow: 0 0 20px rgba(29, 209, 161, 0.4); display: flex; flex-direction: column; }
@@ -169,7 +208,7 @@
             <h1 id="title-logo">BONX BANX</h1>
             <div id="title-ui">
                 <div class="stage-select-box">
-                    <button id="btn-prev" class="pop-btn small-btn">◀</button>
+                
                     <span id="round-display">ROUND 1</span>
                     <button id="btn-next" class="pop-btn small-btn">▶</button>
                 </div>
