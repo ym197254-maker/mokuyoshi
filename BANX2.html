@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bonx Banx: Ultimate Smartphone Edition</title>
+    <title>Bonx Banx: Pop & Swipe Edition</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Kosugi+Maru&display=swap');
+
         html, body {
             margin: 0;
             padding: 0;
-            background-color: #1a1a1a;
+            background-color: #2b2b36; /* 少しポップで暗めの背景 */
             color: #f0f0f0;
-            font-family: 'Courier New', monospace;
+            font-family: 'Kosugi Maru', 'Courier New', monospace;
             text-align: center;
             overflow: hidden;
             touch-action: none; 
-            
-            /* 画面中央寄せ */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -23,45 +23,175 @@
             height: 100vh;
             width: 100vw;
         }
+
         #game-container {
             width: 100%;
-            max-width: 500px; /* スマホでちょうどよく広がるサイズに調整 */
+            max-width: 400px; 
             box-sizing: border-box;
-            padding: 0 12px; 
+            padding: 0 10px;
             position: relative;
             -webkit-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
         }
+
         #hud {
             display: flex;
             justify-content: space-between;
             padding: 8px 16px;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             letter-spacing: 1px;
-            background: #2a2a2a;
-            border-radius: 8px;
+            background: #1e1e28;
+            border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            border: 2px solid #444455;
+            color: #ffeb3b;
         }
+
         #canvas-wrapper {
             width: 100%;
             margin-bottom: 12px;
             position: relative;
+            display: flex;
+            justify-content: center;
         }
+
+        /* 9マス x 13マス = 288px x 416px */
         canvas {
             background-color: #0d0d11;
-            border: 6px solid #3a2211; 
-            border-radius: 8px;
-            width: 100%;
-            height: auto;
+            border: 6px solid #3a2211;
+            border-radius: 12px;
+            width: 288px;
+            height: 416px;
             display: block;
             image-rendering: pixelated;
             box-shadow: 0 8px 16px rgba(0,0,0,0.6);
             touch-action: none;
         }
 
+        /* --- タイトル画面UI --- */
+        #title-screen {
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 288px;
+            height: 416px;
+            background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(20,20,30,0.95));
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+        }
+
+        #title-logo {
+            font-family: 'Fredoka One', cursive;
+            font-size: 38px;
+            margin: 0 0 20px 0;
+            color: #ff4757;
+            text-shadow: 3px 3px 0 #2f3542, 0 0 10px rgba(255,71,87,0.5);
+            letter-spacing: 2px;
+        }
+
+        #title-ui {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 90%;
+        }
+
+        .stage-select-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            background: rgba(255,255,255,0.1);
+            padding: 5px;
+            border-radius: 20px;
+            border: 2px solid #576574;
+        }
+
+        #round-display {
+            font-family: 'Fredoka One', cursive;
+            font-size: 20px;
+            color: #1dd1a1;
+        }
+
+        /* --- ポップなボタンの共通スタイル --- */
+        .pop-btn {
+            font-family: 'Fredoka One', 'Kosugi Maru', sans-serif;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            touch-action: manipulation;
+            transition: all 0.1s;
+        }
+        .pop-btn:active {
+            transform: translateY(4px);
+        }
+
+        .small-btn {
+            background: #54a0ff;
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+            border-radius: 50%;
+            box-shadow: 0 4px 0 #2e86de;
+        }
+        .small-btn:active { box-shadow: 0 0px 0 #2e86de; }
+
+        .large-btn {
+            background: #ff9f43;
+            color: #fff;
+            width: 100%;
+            padding: 15px 0;
+            font-size: 22px;
+            border-radius: 25px;
+            box-shadow: 0 5px 0 #f368e0, 0 8px 15px rgba(0,0,0,0.3);
+            margin-top: 10px;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+        }
+        .large-btn:active { box-shadow: 0 1px 0 #f368e0; }
+
+        .sub-btn {
+            background: #10ac84;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 14px;
+            box-shadow: 0 4px 0 #01a3a4;
+            width: 100%;
+        }
+        .sub-btn:active { box-shadow: 0 0px 0 #01a3a4; }
+
+        .danger-btn {
+            background: #ff6b6b;
+            color: #fff;
+            padding: 10px 15px;
+            font-size: 14px;
+            box-shadow: 0 4px 0 #ee5253;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+        }
+        .danger-btn:active { box-shadow: 0 0px 0 #ee5253; }
+
+        #author-text {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #a4b0be;
+        }
+
+        /* --- アクションコンテナ (プレイ中のみ表示) --- */
         #action-container {
             display: flex;
             gap: 12px;
@@ -69,81 +199,37 @@
             justify-content: space-between;
         }
 
-        #btn-instructions {
-            flex: 1;
-            background: linear-gradient(145deg, #004444, #002222);
-            border: 2px solid #00ffff;
-            color: #00ffff;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            font-weight: bold;
-            padding: 16px 10px;
-            border-radius: 12px;
-            box-shadow: 0 4px 0 #001111, 0 0 8px rgba(0,255,255,0.3);
-            cursor: pointer;
-            touch-action: manipulation;
-            transition: all 0.05s ease;
-        }
-        #btn-instructions:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 #001111, 0 0 4px rgba(0,255,255,0.5);
-            background: #001111;
-        }
-
-        #btn-giveup {
-            flex: 1;
-            background: linear-gradient(145deg, #441111, #220000);
-            border: 2px solid #882222;
-            color: #ffaaaa;
-            font-size: 15px;
-            font-weight: bold;
-            padding: 16px 10px;
-            border-radius: 12px;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 0 #1a0000;
-            cursor: pointer;
-            touch-action: none;
-            white-space: pre-wrap;
-            line-height: 1.2;
-        }
-        #btn-giveup:active {
-            transform: translateY(3px);
-            box-shadow: 0 1px 0 #1a0000;
-            background: #330000;
-        }
-
+        /* --- 説明画面 --- */
         #instructions-screen {
-            display: none;
             position: absolute;
             top: 5%;
             left: 5%;
             right: 5%;
             bottom: 5%;
-            background-color: rgba(13, 13, 17, 0.95);
-            border: 4px solid #00ff00;
+            background-color: rgba(47, 53, 66, 0.95);
+            border: 4px solid #1dd1a1;
             border-radius: 12px;
             z-index: 10;
             box-sizing: border-box;
             padding: 16px;
             text-align: left;
-            box-shadow: 0 0 20px rgba(0,255,0,0.4);
+            box-shadow: 0 0 20px rgba(29, 209, 161, 0.4);
             display: flex;
             flex-direction: column;
         }
         #instructions-title {
-            color: #00ff00;
-            font-size: 22px;
+            color: #1dd1a1;
+            font-size: 20px;
             font-weight: bold;
             text-align: center;
             margin-top: 0;
             margin-bottom: 12px;
-            border-bottom: 2px dashed #00ff00;
+            border-bottom: 2px dashed #1dd1a1;
             padding-bottom: 6px;
+            font-family: 'Fredoka One', cursive;
         }
         #instructions-text {
-            font-size: 15px;
+            font-size: 14px;
             line-height: 1.6;
             color: #ffffff;
             overflow-y: auto;
@@ -151,40 +237,35 @@
             margin-bottom: 15px;
             padding-right: 4px;
         }
-        #instructions-text b { color: #ffcc00; }
+        #instructions-text b { color: #ffeb3b; }
         
-        #btn-close-instructions {
-            display: block;
-            margin: 0 auto;
-            background: #222;
-            border: 2px solid #ffffff;
-            color: #ffffff;
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            font-weight: bold;
-            padding: 12px 30px;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #000;
-            text-align: center;
-        }
-        #btn-close-instructions:active {
-            transform: translateY(3px);
-            box-shadow: 1px 0 #000;
-        }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div id="hud">
+    <div id="hud" style="display: none;">
         <div>SCORE: <span id="score">0</span></div>
         <div>ROUND: <span id="round">1</span></div>
     </div>
     
     <div id="canvas-wrapper">
-        <canvas id="gameCanvas" width="288" height="480"></canvas>
+        <canvas id="gameCanvas" width="288" height="416"></canvas>
         
+        <div id="title-screen">
+            <h1 id="title-logo">BONX BANX</h1>
+            <div id="title-ui">
+                <div class="stage-select-box">
+                    <button id="btn-prev" class="pop-btn small-btn">◀</button>
+                    <span id="round-display">ROUND 1</span>
+                    <button id="btn-next" class="pop-btn small-btn">▶</button>
+                </div>
+                <button id="btn-start" class="pop-btn large-btn">GAME START</button>
+                <button id="btn-title-inst" class="pop-btn sub-btn" style="margin-top:10px; width:70%;">HOW TO PLAY</button>
+            </div>
+            <div id="author-text">mokuyoshi</div>
+        </div>
+
         <div id="instructions-screen" style="display: none;">
             <div id="instructions-title">HOW TO PLAY</div>
             <div id="instructions-text">
@@ -198,13 +279,13 @@
                 ・青ブロックを押して、バンクス君の進行ルートをコントロールしよう！<br><br>
                 ・ギブアップはボタンを長押しで作動します。
             </div>
-            <button id="btn-close-instructions">戻る (BACK)</button>
+            <button id="btn-close-instructions" class="pop-btn sub-btn">戻る (BACK)</button>
         </div>
     </div>
     
-    <div id="action-container">
-        <button id="btn-instructions" type="button">ゲーム説明</button>
-        <div id="btn-giveup">ギブアップ<br>長押し</div>
+    <div id="action-container" style="display: none;">
+        <button id="btn-instructions" class="pop-btn sub-btn">ゲーム説明</button>
+        <div id="btn-giveup" class="pop-btn danger-btn">ギブアップ<br>長押し</div>
     </div>
 </div>
 
@@ -213,9 +294,9 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const TILE_SIZE = 32; 
-// 新しいマップサイズ（横11マス × 縦17マス）※外壁含む
+// 内部データサイズ (壁を含む横11 × 縦15) -> 表示領域は横9 × 縦13
 const MAP_COLS = 11;
-const MAP_ROWS = 17;
+const MAP_ROWS = 15;
 
 let score = 0;
 let round = 1;
@@ -315,13 +396,6 @@ function playDeadSound() {
     }, 140);
 }
 
-function gameOver() {
-    if (gameState === "GAMEOVER") return; 
-    gameState = "GAMEOVER";
-    playDeadSound();   
-    setTimeout(() => { playGameOverSound(); }, 500);
-}
-
 function playGameOverSound() {
     const notes = [392.00, 349.23, 311.13, 293.66, 261.63, 196.00];
     notes.forEach((f, i) => {
@@ -330,198 +404,17 @@ function playGameOverSound() {
     });
 }
 
-// 縦長専用のテスト用10ステージ（見たまま編集可能！）
 const STAGES = {
-    1: [
-        "###########",
-        "#G........#",
-        "###.###.###",
-        "#.........#",
-        "#.C..B..C.#",
-        "#.........#",
-        "#..B###B..#",
-        "#.........#",
-        "#C.......C#",
-        "#....E....#",
-        "#.........#",
-        "#..B...B..#",
-        "#....C....#",
-        "###.###.###",
-        "#P........#",
-        "#.........#",
-        "###########"
-    ],
-    2: [
-        "###########",
-        "#P........#",
-        "#.BB...BB.#",
-        "#.........#",
-        "#..C.E.C..#",
-        "###########",
-        "#.........#",
-        "#.C..B..C.#",
-        "#.........#",
-        "###########",
-        "#.........#",
-        "#...BBB...#",
-        "#.C.....C.#",
-        "#.........#",
-        "#G........#",
-        "#.........#",
-        "###########"
-    ],
-    3: [
-        "###########",
-        "#G....C...#",
-        "####.######",
-        "#.........#",
-        "#..BBBBB..#",
-        "#.........#",
-        "#.C..E..C.#",
-        "#.........#",
-        "#..#B#B#..#",
-        "#..#...#..#",
-        "#C.......C#",
-        "####.######",
-        "#.........#",
-        "#....B....#",
-        "#P........#",
-        "#.........#",
-        "###########"
-    ],
-    4: [
-        "###########",
-        "#.........#",
-        "#.C..P..C.#",
-        "#.........#",
-        "###B#.#B###",
-        "#.........#",
-        "#.C..E..C.#",
-        "#.........#",
-        "###B#.#B###",
-        "#.........#",
-        "#.C.....C.#",
-        "#.........#",
-        "####B.B####",
-        "#.........#",
-        "#G........#",
-        "#.........#",
-        "###########"
-    ],
-    5: [
-        "###########",
-        "#P........#",
-        "#.C..C..C.#",
-        "#.........#",
-        "#..B###B..#",
-        "#..#...#..#",
-        "#..#CE.#..#",
-        "#..#...#..#",
-        "#..#C.C#..#",
-        "#..B###B..#",
-        "#.........#",
-        "#.C..C..C.#",
-        "#.........#",
-        "#G........#",
-        "#.........#",
-        "#.........#",
-        "###########"
-    ],
-    6: [
-        "###########",
-        "#G...B...C#",
-        "###.###.###",
-        "#P........#",
-        "#.B..C..B.#",
-        "#.........#",
-        "###.###.###",
-        "#.........#",
-        "#.C..E..C.#",
-        "#.........#",
-        "###.###.###",
-        "#C...B...C#",
-        "#.........#",
-        "###.###.###",
-        "#.........#",
-        "#.........#",
-        "###########"
-    ],
-    7: [
-        "###########",
-        "#C.......G#",
-        "#.........#",
-        "###B###B###",
-        "#.........#",
-        "#.C..C..C.#",
-        "#.........#",
-        "#..BBBBB..#",
-        "#.........#",
-        "#.E..C..P.#",
-        "#.........#",
-        "###B###B###",
-        "#.........#",
-        "#C.......C#",
-        "#.........#",
-        "#.........#",
-        "###########"
-    ],
-    8: [
-        "###########",
-        "#G........#",
-        "#.C.BBB.C.#",
-        "#.........#",
-        "#B.......B#",
-        "#.........#",
-        "#.C..E..C.#",
-        "#.........#",
-        "#B.......B#",
-        "#.........#",
-        "#.C.BBB.C.#",
-        "#.........#",
-        "#P........#",
-        "#.........#",
-        "#.........#",
-        "#.........#",
-        "###########"
-    ],
-    9: [
-        "###########",
-        "#C.......C#",
-        "#..B...B..#",
-        "#.........#",
-        "###.###.###",
-        "#G........#",
-        "###B###B###",
-        "#P........#",
-        "###.###.###",
-        "#.........#",
-        "#.C..E..C.#",
-        "#.........#",
-        "###B###B###",
-        "#.........#",
-        "#C.......C#",
-        "#.........#",
-        "###########"
-    ],
-    10: [
-        "###########",
-        "#P.......C#",
-        "#.........#",
-        "#B.BB.BB.B#",
-        "#.........#",
-        "#.C.....C.#",
-        "#.........#",
-        "#B.BB.BB.B#",
-        "#.........#",
-        "#.C..E..C.#",
-        "#.........#",
-        "#B.BB.BB.B#",
-        "#.........#",
-        "#.C.....C.#",
-        "#........G#",
-        "#.........#",
-        "###########"
-    ]
+    1: ["###########","#G........#","###.###.###","#.........#","#.C..B..C.#","#.........#","#..B###B..#","#.........#","#C.......C#","#....E....#","#.........#","#..B...B..#","#....C....#","###.###.###","#P........#"],
+    2: ["###########","#P........#","#.BB...BB.#","#.........#","#..C.E.C..#","###########","#.........#","#.C..B..C.#","#.........#","###########","#.........#","#...BBB...#","#.C.....C.#","#.........#","#G........#"],
+    3: ["###########","#G....C...#","####.######","#.........#","#..BBBBB..#","#.........#","#.C..E..C.#","#.........#","#..#B##..#","#..#...#..#","#C.......C#","####.######","#.........#","#....B....#","#P........#"],
+    4: ["###########","#.........#","#.C..P..C.#","#.........#","###B#.#B###","#.........#","#.C..E..C.#","#.........#","###B#.#B###","#.........#","#.C.....C.#","#.........#","####B.B####","#.........#","#G........#"],
+    5: ["###########","#P........#","#.C..C..C.#","#.........#","#..B###B..#","#..#...#..#","#..#CE.#..#","#..#...#..#","#..#C.C#..#","#..B###B..#","#.........#","#.C..C..C.#","#.........#","#G........#","#.........#"],
+    6: ["###########","#G...B...C#","###.###.###","#P........#","#.B..C..B.#","#.........#","###.###.###","#.........#","#.C..E..C.#","#.........#","###.###.###","#C...B...C#","#.........#","###.###.###","#.........#"],
+    7: ["###########","#C.......G#","#.........#","###B###B###","#.........#","#.C..C..C.#","#.........#","#..BBBBB..#","#.........#","#.E..C..P.#","#.........#","###B###B###","#.........#","#C.......C#","#.........#"],
+    8: ["###########","#G........#","#.C.BBB.C.#","#.........#","#B.......B#","#.........#","#.C..E..C.#","#.........#","#B.......B#","#.........#","#.C.BBB.C.#","#.........#","#P........#","#.........#","#.........#"],
+    9: ["###########","#C.......C#","#..B...B..#","#.........#","###.###.###","#G........#","###B###B###","#P........#","###.###.###","#.........#","#.C..E..C.#","#.........#","###B###B###","#.........#","#C.......C#"],
+    10: ["###########","#P.......C#","#.........#","#B.BB.BB.B#","#.........#","#.C.....C.#","#.........#","#B.BB.BB.B#","#.........#","#.C..E..C.#","#.........#","#B.BB.BB.B#","#.........#","#.C.....C.#","#........G#"]
 };
 
 const newArt = {
@@ -584,7 +477,6 @@ function drawCustomArt(pixelX, pixelY, type, blink = false) {
 
 let map = Array(MAP_ROWS).fill().map(() => Array(MAP_COLS).fill(0));
 
-// 見たままのマップデータをそのまま解析
 function parseTextMap(stageLines) {
     for(let y=0; y<MAP_ROWS; y++) for(let x=0; x<MAP_COLS; x++) map[y][x] = 0;
     
@@ -621,9 +513,29 @@ function getRemainingCarrotCount() {
     return count;
 }
 
+// ボタンイベントの登録（タイトル画面UI）
+document.getElementById("btn-start").onclick = () => {
+    initAudio();
+    if (gameState === "TITLE") startGame();
+};
+document.getElementById("btn-prev").onclick = () => {
+    initAudio();
+    selectedRound = selectedRound > 1 ? selectedRound - 1 : 10;
+    document.getElementById("round-display").innerText = "ROUND " + selectedRound;
+    playSound(440, 0.05, 'square');
+};
+document.getElementById("btn-next").onclick = () => {
+    initAudio();
+    selectedRound = selectedRound < 10 ? selectedRound + 1 : 1;
+    document.getElementById("round-display").innerText = "ROUND " + selectedRound;
+    playSound(440, 0.05, 'square');
+};
+
 function initTitleScreen() {
     gameState = "TITLE";
-    document.getElementById("btn-giveup").style.display = "none"; 
+    document.getElementById("title-screen").style.display = "flex";
+    document.getElementById("hud").style.display = "none";
+    document.getElementById("action-container").style.display = "none";
     resetGiveUp();
     if(gameTimer) clearInterval(gameTimer);
     if(titleTimer) clearInterval(titleTimer);
@@ -631,11 +543,16 @@ function initTitleScreen() {
 }
 
 function startGame() {
-    if (gameState === "INSTRUCTIONS") return; 
     if(titleTimer) clearInterval(titleTimer);
     initAudio();
     round = selectedRound; score = 0;
     document.getElementById("score").innerText = score;
+    
+    // UI切り替え
+    document.getElementById("title-screen").style.display = "none";
+    document.getElementById("hud").style.display = "flex";
+    document.getElementById("action-container").style.display = "flex";
+    
     initStage();
 }
 
@@ -646,7 +563,6 @@ function initStage() {
     document.getElementById("round").innerText = round;
     gameState = "START_READY"; readyTimerCount = 0; blinkState = true;
     
-    document.getElementById("btn-giveup").style.display = "flex"; 
     resetGiveUp();
     playStartSound();
 
@@ -673,7 +589,7 @@ function initStage() {
 function triggerGameOver() {
     if (gameState === "GAMEOVER_PERFORM" || gameState === "GAMEOVER_BLINKING") return; 
     gameState = "GAMEOVER_PERFORM"; 
-    document.getElementById("btn-giveup").style.display = "none"; 
+    document.getElementById("action-container").style.display = "none"; 
     resetGiveUp();
     playDeadSound();
     
@@ -718,7 +634,7 @@ function updateEnemy() {
     }
 
     if (map[enemy.y][enemy.x] === 9 && getRemainingCarrotCount() === 0) {
-        document.getElementById("btn-giveup").style.display = "none";
+        document.getElementById("action-container").style.display = "none";
         playClearSound(); gameState = "STAGE_CLEAR_PERFORM"; clearTimerCount = 0;
         return;
     }
@@ -734,23 +650,15 @@ function renderLoop() {
 }
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (gameState === "TITLE" || gameState === "INSTRUCTIONS") {
-        ctx.fillStyle = "#0d0d11"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#ffcc00"; ctx.font = "bold 44px 'Courier New'"; ctx.textAlign = "center";
-        ctx.fillText("BONX BANX", canvas.width / 2, 140);
-        ctx.fillStyle = "#00ffff"; ctx.font = "bold 20px 'Courier New'";
-        ctx.fillText(`STAGE SELECT: < ROUND ${selectedRound} >`, canvas.width / 2, 230);
-        ctx.fillStyle = "#ffffff"; ctx.font = "16px 'Courier New'";
-        if (blinkState && gameState === "TITLE") ctx.fillText("TAP OR TRACE TO START", canvas.width / 2, 290);
-        ctx.fillStyle = "#ffff00"; ctx.font = "16px 'Courier New'";
-        ctx.fillText("左右なぞりでステージ選択", canvas.width / 2, 330);
-        ctx.fillStyle = "#ffffff"; ctx.font = "18px 'Courier New'";
-        ctx.fillText("mokuyoshi", canvas.width / 2, 400);
+        // タイトル画面等はDOM要素が上にかぶさるのでCanvasはクリアにしておく
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         return;
     }
 
-    // 外壁を描画しない (x=1~9, y=1~15)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 外壁を描画しない (x=1~9, y=1~13)
     for (let y = 1; y < MAP_ROWS - 1; y++) {
         for (let x = 1; x < MAP_COLS - 1; x++) {
             let px = (x - 1) * TILE_SIZE; 
@@ -774,43 +682,25 @@ function draw() {
     drawCustomArt(playerDrawX - TILE_SIZE, playerDrawY - TILE_SIZE, "player", isBlinking);
     
     if (gameState === "START_READY") {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 160, canvas.width, 120);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 140, canvas.width, 100);
         ctx.fillStyle = "#00ffff"; ctx.font = "bold 36px 'Courier New'"; ctx.textAlign = "center";
-        ctx.fillText(`ROUND ${round}`, canvas.width / 2, 215);
-        ctx.fillStyle = "#ffffff"; ctx.font = "bold 20px 'Courier New'"; ctx.fillText("READY?", canvas.width / 2, 250);
+        ctx.fillText(`ROUND ${round}`, canvas.width / 2, 185);
+        ctx.fillStyle = "#ffffff"; ctx.font = "bold 20px 'Courier New'"; ctx.fillText("READY?", canvas.width / 2, 220);
     }
     if (gameState === "STAGE_CLEAR_PERFORM") {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 160, canvas.width, 120);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 140, canvas.width, 100);
         ctx.fillStyle = "#ffcc00"; ctx.font = "bold 36px 'Courier New'"; ctx.textAlign = "center";
-        ctx.fillText("STAGE CLEAR !!", canvas.width / 2, 230);
+        ctx.fillText("STAGE CLEAR !!", canvas.width / 2, 200);
     }
     if (gameState === "GAMEOVER_BLINKING") {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(0, 160, canvas.width, 120);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(0, 140, canvas.width, 100);
         ctx.fillStyle = "#cc0000"; ctx.font = "bold 44px 'Courier New'"; ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", canvas.width / 2, 230);
-    }
-}
-
-function handleTitleInput(dir) {
-    if (dir === "left") {
-        selectedRound--; if (selectedRound < 1) selectedRound = 10;
-        playSound(440, 0.05, 'square');
-    } else if (dir === "right") {
-        selectedRound++; if (selectedRound > 10) selectedRound = 1;
-        playSound(440, 0.05, 'square');
-    } else if (dir === "up" || dir === "down") {
-        startGame();
+        ctx.fillText("GAME OVER", canvas.width / 2, 200);
     }
 }
 
 window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
-    if (gameState === "TITLE") {
-        if (e.key === "ArrowLeft") handleTitleInput("left");
-        else if (e.key === "ArrowRight") handleTitleInput("right");
-        else if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") handleTitleInput("up");
-        return;
-    }
     if (gameState !== "PLAYING") return;
     if (e.key === "ArrowUp") movePlayer(0, -1);
     else if (e.key === "ArrowDown") movePlayer(0, 1);
@@ -853,9 +743,6 @@ canvas.addEventListener("touchstart", (e) => {
     if (e.touches.length > 0) {
         currentTouchX = e.touches[0].clientX;
         currentTouchY = e.touches[0].clientY;
-        if (gameState === "TITLE") {
-            startGame();
-        }
     }
 }, {passive: false});
 
@@ -928,26 +815,27 @@ btnGiveUp.addEventListener("mouseleave", cancelGiveUp);
 
 // 説明画面
 const btnInst = document.getElementById("btn-instructions");
+const btnTitleInst = document.getElementById("btn-title-inst");
 const btnCloseInst = document.getElementById("btn-close-instructions");
 const instScreen = document.getElementById("instructions-screen");
 
-btnInst.addEventListener("click", (e) => {
+function openInstructions(e) {
     e.stopPropagation();
     initAudio();
     if (gameState === "TITLE") {
         gameState = "INSTRUCTIONS";
         instScreen.style.display = "flex";
-        btnInst.style.display = "none";
         playSound(600, 0.05, 'square');
     }
-});
+}
+btnInst.addEventListener("click", openInstructions);
+btnTitleInst.addEventListener("click", openInstructions);
 
 btnCloseInst.addEventListener("click", (e) => {
     e.stopPropagation();
     if (gameState === "INSTRUCTIONS") {
         gameState = "TITLE";
         instScreen.style.display = "none";
-        btnInst.style.display = "block";
         playSound(440, 0.05, 'square');
     }
 });
