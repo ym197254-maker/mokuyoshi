@@ -24,7 +24,7 @@
         #game-container {
             width: 100%;
             height: 100dvh; 
-            max-width: 600px; /* 横幅の制限を広げる */
+            max-width: 100vw; /* 横幅の制限を広げる */
             margin: 0 auto;
             box-sizing: border-box;
             padding: 4px; /* 余白を10pxから4pxに削減 */
@@ -61,22 +61,43 @@
             display: flex;
             align-items: center; 
             justify-content: center; 
-            min-height: 0;
-        }
+            min-height: canvas {
+    background-color: #0d0d11;
+    border: 4px solid #3a2211;
+    border-radius: 10px;
 
-        canvas {
-            background-color: #0d0d11;
-            border: 4px solid #3a2211; /* 枠線を少し細くして中身を広く */
-            border-radius: 10px;
-            max-width: 100%;
-            max-height: 100%;
-            aspect-ratio: 288 / 416; 
-            display: block;
-            image-rendering: pixelated;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.6);
-            box-sizing: border-box;
-            touch-action: none;
-        }
+    width: 100%;
+    max-width: 100%;
+
+    height: auto;
+
+    aspect-ratio: 288 / 416;
+
+    display: block;
+    image-rendering: pixelated;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+    box-sizing: border-box;
+    touch-action: none;
+}
+    canvas {
+    background-color: #0d0d11;
+    border: 4px solid #3a2211;
+    border-radius: 10px;
+
+    width: 100%;
+    max-width: 100%;
+
+    height: auto;
+
+    aspect-ratio: 288 / 416;
+
+    display: block;
+    image-rendering: pixelated;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+    box-sizing: border-box;
+    touch-action: none;
+}
+
 
         /* --- タイトル画面UI --- */
         #title-screen {
