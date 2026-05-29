@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>照合できません</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+}
+
+body{
+    margin:0;
+    overflow:hidden;
+    background:#000;
+    color:#fff;
+    font-family:"Hiragino Sans",sans-serif;
+}
+
+#game{
+    position:relative;
+    width:100vw;
+    height:100vh;
+    background:
+        linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.75)),
+        url("https://images.unsplash.com/photo-1497366754035-f200968a6e72?q=80&w=1200&auto=format&fit=crop");
+    background-size:cover;
+    background-position:center;
+}
+
+#title{
+    position:absolute;
+    top:18px;
+    left:18px;
+    font-size:18px;
+    letter-spacing:.15em;
+    opacity:.9;
+}
+
+#textbox{
+    position:absolute;
+    left:0;
+    bottom:0;
+    width:100%;
+    min-height:34%;
+    background:rgba(0,0,0,.72);
+    border-top:1px solid rgba(255,255,255,.15);
+    padding:22px;
+}
+
+#name{
+    font-size:14px;
+    color:#bdbdbd;
+    margin-bottom:12px;
+}
+
+#text{
+    font-size:20px;
+    line-height:1.9;
+    white-space:pre-wrap;
+    min-height:150px;
+}
+
+#next{
+    position:absolute;
+    right:22px;
+    bottom:18px;
+    font-size:24px;
+    opacity:0;
+    animation:blink .8s infinite;
+}
+
+@keyframes blink{
+    0%{opacity:.1;}
+    50%{opacity:1;}
+    100%{opacity:.1;}
+}
+
+.glitch{
+    animation:glitch .12s 2;
+}
+
+@keyframes glitch{
+    0%{transform:translateX(0);}
+    25%{transform:translateX(-3px);}
+    50%{transform:translateX(2px);}
+    100%{transform:translateX(0);}
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+    <div id="title">照合できません</div>
+
+    <div id="textbox">
+        <div id="name"></div>
+        <div id="text"></div>
+        <div id="next">▶</div>
+    </div>
+</div>
+
+<script>
+
+const scenario = [
+    {name:"", text:"月曜の朝だった。"},
+    {name:"", text:"目覚ましより少し早く目が覚めたのは、年齢のせいかもしれない。"},
+    {name:"", text:"カーテンの隙間から、薄い灰色の光が差している。"},
+    {name:"", text:"六畳一間のリビングには、昨日のコンビニ弁当の容器がまだテーブルに残っていた。"},
+    {name:"", text:"54歳。独身。\\n正確にはバツイチ。"},
+    {name:"", text:"テレビをつけると、朝の情報番組で若いタレントが騒いでいる。"},
+    {name:"", text:"音だけ流しながら、湯を沸かし、インスタントコーヒーを作る。"},
+    {name:"木野山", text:"……薄いな。"},
+    {name:"", text:"昔からこんな味だったか、と少し思ったが、気にしなかった。"},
+    {name:"", text:"六月十日、月曜日。"},
+    {name:"木野山", text:"……六月？"},
+    {name:"", text:"駅までの道を歩きながら、いつものコンビニへ向かう。"},
+    {name:"木野山", text:"……あれ。"},
+    {name:"", text:"店の看板が変わっていた。"},
+    {name:"ニュース", text:"――関東中央電鉄の統合から三年――"},
+    {name:"木野山", text:"そんな会社名だったか……？"},
+    {name:"", text:"受付横のゲートに社員証をかざす。"},
+    {name:"", text:"ピッ。"},
+    {name:"SYSTEM", text:"照合できません"},
+    {name:"受付", text:"お客様、どうかされましたか？"},
+    {name:"", text:"その言葉の意味が、一瞬わからなかった。"},
+    {name:"", text:"―― TO BE CONTINUED ――"}
+];
+
+const textEl = document.getElementById("text");
+const nameEl = document.getElementById("name");
+const nextEl = document.getElementById("next");
+const gameEl = document.getElementById("game");
+
+let index = 0;
+let charIndex = 0;
+let typing = false;
+let currentText = "";
+let timer = null;
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function beep(){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "square";
+    osc.frequency.value = 880;
+    gain.gain.value = 0.01;
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+
+    setTimeout(() => {
+        osc.stop();
+    }, 15);
+}
+
+function showLine(){
+
+    clearInterval(timer);
+
+    const scene = scenario[index];
+
+    nameEl.textContent = scene.name;
+    currentText = scene.text.replace(/\\n/g, "\n");
+
+    textEl.textContent = "";
+    nextEl.style.opacity = 0;
+
+    charIndex = 0;
+    typing = true;
+
+    if(scene.name === "SYSTEM"){
+        gameEl.classList.add("glitch");
+
+        setTimeout(() => {
+            gameEl.classList.remove("glitch");
+        }, 120);
+    }
+
+    timer = setInterval(() => {
+
+        textEl.textContent += currentText.charAt(charIndex);
+
+        const c = currentText.charAt(charIndex);
+
+        if(c !== " " && c !== "\n"){
+            beep();
+        }
+
+        charIndex++;
+
+        if(charIndex >= currentText.length){
+            clearInterval(timer);
+            typing = false;
+            nextEl.style.opacity = 1;
+        }
+
+    }, 35);
+}
+
+function nextLine(){
+
+    if(typing){
+        clearInterval(timer);
+        textEl.textContent = currentText;
+        typing = false;
+        nextEl.style.opacity = 1;
+        return;
+    }
+
+    index++;
+
+    if(index >= scenario.length){
+        index = scenario.length - 1;
+        return;
+    }
+
+    showLine();
+}
+
+document.body.addEventListener("click", () => {
+
+    if(audioCtx.state === "suspended"){
+        audioCtx.resume();
+    }
+
+    nextLine();
+});
+
+showLine();
+
+</script>
+
+</body>
+</html>
