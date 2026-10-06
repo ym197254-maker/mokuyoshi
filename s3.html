@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>スーパーレジパズル</title>
     <style>
         body {
@@ -11,34 +12,64 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
+            justify-content: flex-start;
+            min-height: 100vh;
             margin: 0;
-            overflow: hidden;
-            touch-action: none;
+            padding: 10px;
+            box-sizing: border-box;
+            touch-action: manipulation;
         }
         h2 {
-            margin: 5px 0 5px 0;
+            margin: 5px 0;
             font-size: 16px;
         }
         canvas {
             border: 2px solid #555;
             background-color: #1a1a2e;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            max-width: 100%;
+            height: auto;
+        }
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            background-color: #e67e22;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        button:active {
+            background-color: #d35400;
+            transform: translateY(2px);
         }
         .instructions {
             font-size: 11px;
             color: #aaa;
-            margin-top: 6px;
+            margin-top: 8px;
             text-align: center;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
-    <h2>スーパーレジパズル（操作改善版）</h2>
+    <h2>スーパーレジパズル</h2>
     <canvas id="gameCanvas" width="480" height="780"></canvas>
+    
+    <!-- スマホ操作用の回転・便利ボタン -->
+    <div class="controls">
+        <button id="rotateBtn">🔄 回す (回転)</button>
+    </div>
+
     <div class="instructions">
-        ドラッグ：左右移動 ｜ タップ：回転 ｜ 下スワイプ：急落下 ｜ 上部ストック：入れ替え
+        ドラッグ：左右移動 ｜ 下スワイプ：急落下 ｜ 上部ストック：入れ替え
     </div>
 
     <script>
@@ -68,12 +99,11 @@
             let currentItem = null;
             let stockItem = null;
             let fallX = 2; 
-            let fallY = GRID_H - 1; // カゴの一番上からスタートするように修正
+            let fallY = GRID_H - 1; 
             let normalFallSpeed = 0.5; 
 
             let isDragging = false;
             let dragStartX = 0, dragStartY = 0;
-            let hasMoved = false;
 
             function getRandomItem() {
                 const template = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
@@ -137,6 +167,27 @@
                 return false;
             }
 
+            // 回転ボタンの処理
+            function doRotate() {
+                if (isGameOver || !currentItem) return;
+                let rotated = rotateShape(currentItem.shape);
+                if (!checkCollision(fallX, Math.floor(fallY), rotated)) {
+                    currentItem.shape = rotated;
+                } else if (!checkCollision(fallX - 1, Math.floor(fallY), rotated)) {
+                    fallX -= 1;
+                    currentItem.shape = rotated;
+                } else if (!checkCollision(fallX + 1, Math.floor(fallY), rotated)) {
+                    fallX += 1;
+                    currentItem.shape = rotated;
+                }
+            }
+
+            document.getElementById('rotateBtn').addEventListener('click', doRotate);
+            document.getElementById('rotateBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                doRotate();
+            });
+
             function handleTouchStart(clientX, clientY) {
                 if (isGameOver) {
                     resetGame();
@@ -144,8 +195,10 @@
                 }
 
                 const rect = canvas.getBoundingClientRect();
-                const x = clientX - rect.left;
-                const y = clientY - rect.top;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (clientX - rect.left) * scaleX;
+                const y = (clientY - rect.top) * scaleY;
 
                 // ストックエリアのタップ判定
                 if (y >= 75 && y <= 125 && x >= 140 && x <= 230) {
@@ -165,24 +218,15 @@
                 isDragging = true;
                 dragStartX = x;
                 dragStartY = y;
-                hasMoved = false;
             }
 
             function handleTouchMove(clientX, clientY) {
                 if (!isDragging || isGameOver) return;
 
                 const rect = canvas.getBoundingClientRect();
-                const x = clientX - rect.left;
-                const y = clientY - rect.top;
+                const scaleX = canvas.width / rect.width;
+                const x = (clientX - rect.left) * scaleX;
 
-                let diffX = x - dragStartX;
-                let diffY = y - dragStartY;
-
-                if (Math.abs(diffX) > 8 || Math.abs(diffY) > 8) {
-                    hasMoved = true;
-                }
-
-                // ドラッグ位置に応じた列（X座標）の計算
                 let newCol = Math.floor((x - ORIGIN_X) / CELL_SIZE);
                 if (newCol < 0) newCol = 0;
                 if (newCol > GRID_W - currentItem.shape[0].length) {
@@ -199,24 +243,12 @@
                 isDragging = false;
 
                 const rect = canvas.getBoundingClientRect();
-                const y = clientY - rect.top;
+                const scaleY = canvas.height / rect.height;
+                const y = (clientY - rect.top) * scaleY;
                 let diffY = y - dragStartY;
 
-                // 動かしていなければ「タップ」とみなして回転
-                if (!hasMoved) {
-                    let rotated = rotateShape(currentItem.shape);
-                    if (!checkCollision(fallX, Math.floor(fallY), rotated)) {
-                        currentItem.shape = rotated;
-                    } else if (!checkCollision(fallX - 1, Math.floor(fallY), rotated)) {
-                        fallX -= 1;
-                        currentItem.shape = rotated;
-                    } else if (!checkCollision(fallX + 1, Math.floor(fallY), rotated)) {
-                        fallX += 1;
-                        currentItem.shape = rotated;
-                    }
-                } 
-                // 下スワイプなら最下層まで落とす
-                else if (diffY > 40) {
+                // 下スワイプなら急落下
+                if (diffY > 40) {
                     while (!checkCollision(fallX, Math.floor(fallY) - 1, currentItem.shape) && Math.floor(fallY) > 0) {
                         fallY -= 1;
                     }
@@ -277,11 +309,8 @@
                         isGameOver = true;
                     }
 
-                    // ドラッグ中でなければ自動落下
                     if (!isDragging) {
                         fallY -= normalFallSpeed * dt;
-
-                        // 着地判定
                         if (checkCollision(fallX, Math.floor(fallY), currentItem.shape) || fallY < 0) {
                             fallY = Math.ceil(fallY);
                             lockItem();
