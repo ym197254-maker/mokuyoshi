@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>レジカゴ詰めパズル(仮)</title>
+<style>
+:root{--bg:#fdf6ec;--fg:#3b2f1e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1a17;--fg:#eadfce}}
+:root[data-theme="dark"]{--bg:#1c1a17;--fg:#eadfce}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:sans-serif;display:flex;flex-direction:column;align-items:center;padding:8px}
+canvas{width:100%;max-width:360px;height:auto;touch-action:none;border-radius:12px;background:#fff8e7;user-select:none}
+p{font-size:13px;max-width:360px;line-height:1.5;margin:8px 0}
+</style>
+</head>
+<body>
+<canvas id="cv" width="360" height="712"></canvas>
+<p>画面のどこでも左右にスワイプ/ドラッグで移動、タップ/クリックで回転、まっすぐ素早く下にスワイプ(PCは右クリック/スペース)で落下。下の枠をタップでストック。上に積んだ重さの合計が耐荷重を超えると下の商品が潰れます(赤い点滅が速いほど危険)。3つ潰すとゲームオーバー。</p>
+<script>
+const C=12,R=16,S=22,BX=48,BY=254,TL=60;
+const B=(h,w)=>{const a=[];for(let r=0;r<h;r++)for(let c=0;c<w;c++)a.push([r,c]);return a};
+const D=[
+{n:"スポンジ",p:120,w:1,k:30,col:"#f7dc6f",cells:B(1,2)},
+{n:"卵",p:280,w:1,k:5,col:"#fae5d3",cells:B(2,4)},
+{n:"パン",p:180,w:1,k:5,col:"#e5b97e",cells:B(2,3)},
+
+{n:"缶詰",p:150,w:2,k:40,col:"#bfc9ca",cells:B(2,2)},
+{n:"牛乳",p:220,w:3,k:15,col:"#85c1e9",cells:B(4,2)},
+{n:"ペットボトル",p:130,w:3,k:20,col:"#76d7c4",cells:B(3,2)},
+{n:"大根",p:150,w:3,k:10,col:"#f2f4f4",cells:B(5,2)},
+{n:"キャベツ",p:250,w:2,k:10,col:"#82e0aa",cells:B(3,3)},
+{n:"スイカ",p:1200,w:5,k:15,col:"#82e0aa",cells:B(5,5)},
+{n:"お米",p:2500,w:5,k:10,col:"#f4ecd8",cells:B(6,4)}];
+const SL=[[125,640,105,62],[240,640,105,62]];
+const cv=document.getElementById("cv"),X=cv.getContext("2d");
+let G,P,stock,cur,nxt,col=2,cy=0,score,time,over,last,dn=null,broken=0,DT=0,lx=null,ax=0,wo=false,lk=0;
+let AC=null,mute=false;
+function au(){try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume()}catch(e){}return AC}
+function tone(f,d,ty="square",v=.12,f2=0,dl=0){if(mute||!AC)return;const o=AC.createOscillator(),g=AC.createGain(),t0=AC.currentTime+dl;o.type=ty;o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+d);g.gain.setValueAtTime(v,t0);g.gain.exponentialRampToValueAtTime(.001,t0+d);o.connect(g);g.connect(AC.destination);o.start(t0);o.stop(t0+d)}
+function noise(d,v=.25){if(mute||!AC)return;const n=AC.sampleRate*d|0,b=AC.createBuffer(1,n,AC.sampleRate),a=b.getChannelData(0);for(let i=0;i<n;i++)a[i]=(Math.random()*2-1)*(1-i/n);const s=AC.createBufferSource(),g=AC.createGain();s.buffer=b;g.gain.value=v;s.connect(g);g.connect(AC.destination);s.start()}
+const SND={rot:()=>tone(660,.06,"square",.06),swap:()=>{tone(500,.07,"square",.07);tone(750,.07,"square",.07,0,.07)},beep:()=>tone(1800,.09,"square",.08),thud:()=>tone(140,.12,"sine",.3,60),crush:()=>{noise(.35,.3);tone(300,.3,"sawtooth",.15,60)},warn:()=>tone(1000,.05,"square",.05),over:()=>{[523,392,330,262].forEach((f,i)=>tone(f,.25,"triangle",.15,0,i*.2))},bell:()=>{tone(1568,.9,"sine",.2);tone(2093,.9,"sine",.1)}};
+const rd=()=>D[Math.random()*D.length|0];
+const norm=a=>{const mr=Math.min(...a.map(v=>v[0])),mc=Math.min(...a.map(v=>v[1]));return a.map(([r,c])=>[r-mr,c-mc])};
+const rot=a=>{const m=Math.max(...a.map(v=>v[0]));return norm(a.map(([r,c])=>[c,m-r]))};
+const wd=a=>Math.max(...a.map(v=>v[1]))+1,ht=a=>Math.max(...a.map(v=>v[0]))+1;
+const fits=(a,r,c)=>a.every(([dr,dc])=>{const rr=r+dr,cc=c+dc;return cc>=0&&cc<C&&rr<R&&(rr<0||!G[rr][cc])});
+const LR=(a,c)=>{let r=-5;while(fits(a,r+1,c))r++;return r};
+const put=p=>p.cells.forEach(([dr,dc])=>G[p.r+dr][p.c+dc]=p);
+const clr=p=>p.cells.forEach(([dr,dc])=>G[p.r+dr][p.c+dc]=null);
+const SV={
+"トマト":`<circle cx='50' cy='56' r='37' fill='#e74c3c' stroke='#a93226' stroke-width='3'/><path d='M50 24l7 11 11-4-5 11-13-2-13 2-5-11 11 4z' fill='#27ae60'/><ellipse cx='38' cy='46' rx='7' ry='10' fill='#fff' opacity='.35'/>`,
+"スポンジ":`<rect x='10' y='20' width='80' height='60' rx='10' fill='#f4d03f' stroke='#b7950b' stroke-width='3'/><rect x='10' y='20' width='80' height='20' rx='10' fill='#58d68d'/><circle cx='28' cy='60' r='5' fill='#d4ac0d'/><circle cx='52' cy='68' r='4' fill='#d4ac0d'/><circle cx='72' cy='56' r='5' fill='#d4ac0d'/>`,
+"缶詰":`<rect x='24' y='22' width='52' height='62' rx='6' fill='#bdc3c7' stroke='#566573' stroke-width='3'/><rect x='24' y='42' width='52' height='26' fill='#e74c3c'/><ellipse cx='50' cy='22' rx='26' ry='7' fill='#d5d8dc' stroke='#566573' stroke-width='3'/>`,
+"卵":`<rect x='6' y='62' width='288' height='32' rx='8' fill='#c9a27a'/><g fill='#fdf2e0' stroke='#b9a07a' stroke-width='3'><ellipse cx='52' cy='50' rx='32' ry='40'/><ellipse cx='150' cy='50' rx='32' ry='40'/><ellipse cx='248' cy='50' rx='32' ry='40'/></g>`,
+"パン":`<rect x='20' y='50' width='160' height='116' rx='54' fill='#d9954a' stroke='#8e5a1e' stroke-width='5'/><path d='M62 82l20 38M100 78l20 42M138 82l20 38' stroke='#f5cd8f' stroke-width='10' stroke-linecap='round'/>`,
+"牛乳":`<path d='M22 56L50 20l28 36z' fill='#85c1e9' stroke='#21618c' stroke-width='3'/><rect x='22' y='56' width='56' height='136' fill='#fff' stroke='#21618c' stroke-width='3'/><rect x='22' y='96' width='56' height='54' fill='#3498db'/><text x='50' y='132' text-anchor='middle' font-size='18' font-weight='bold' fill='#fff'>MILK</text>`,
+"お茶":`<rect x='40' y='12' width='20' height='18' rx='4' fill='#27ae60'/><path d='M38 30h24l14 36v210q0 14-14 14H38q-14 0-14-14V66z' fill='#a9dfbf' stroke='#1e8449' stroke-width='4'/><rect x='26' y='110' width='48' height='100' fill='#27ae60'/><text x='50' y='168' text-anchor='middle' font-size='24' font-weight='bold' fill='#fff'>茶</text>`,
+"スイカ":`<circle cx='150' cy='158' r='132' fill='#43a85a' stroke='#1e6b3a' stroke-width='6'/><g stroke='#1e6b3a' stroke-width='16' fill='none' opacity='.55' stroke-linecap='round'><path d='M150 28Q100 158 150 288'/><path d='M150 28Q200 158 150 288'/><path d='M150 28Q40 158 150 288'/><path d='M150 28Q260 158 150 288'/></g><path d='M150 28q0-18 14-22' stroke='#6e4b1f' stroke-width='8' fill='none'/><ellipse cx='95' cy='95' rx='22' ry='34' fill='#fff' opacity='.25' transform='rotate(35 95 95)'/>`,
+"お米":`<path d='M40 40Q100 20 160 40L176 270Q100 290 24 270Z' fill='#f0e0b8' stroke='#a68a4e' stroke-width='5'/><path d='M50 42Q100 64 150 42' fill='none' stroke='#a68a4e' stroke-width='5'/><rect x='48' y='110' width='104' height='100' rx='8' fill='#fff'/><text x='100' y='178' text-anchor='middle' font-size='56' font-weight='bold' fill='#c0392b'>米</text>`};
+const SV2={
+"スポンジ":`<rect x='10' y='14' width='180' height='72' rx='12' fill='#f4d03f' stroke='#b7950b' stroke-width='4'/><rect x='10' y='14' width='180' height='26' rx='12' fill='#58d68d'/><circle cx='40' cy='62' r='6' fill='#d4ac0d'/><circle cx='95' cy='70' r='5' fill='#d4ac0d'/><circle cx='140' cy='58' r='6' fill='#d4ac0d'/><circle cx='170' cy='72' r='4' fill='#d4ac0d'/>`,
+"卵":`<rect x='6' y='8' width='388' height='184' rx='16' fill='#c9a27a'/><g fill='#fdf2e0' stroke='#b9a07a' stroke-width='3'><ellipse cx='52' cy='54' rx='34' ry='40'/><ellipse cx='151' cy='54' rx='34' ry='40'/><ellipse cx='250' cy='54' rx='34' ry='40'/><ellipse cx='349' cy='54' rx='34' ry='40'/><ellipse cx='52' cy='146' rx='34' ry='40'/><ellipse cx='151' cy='146' rx='34' ry='40'/><ellipse cx='250' cy='146' rx='34' ry='40'/><ellipse cx='349' cy='146' rx='34' ry='40'/></g>`,
+"パン":`<rect x='20' y='40' width='260' height='130' rx='60' fill='#d9954a' stroke='#8e5a1e' stroke-width='6'/><path d='M80 70l24 56M140 66l24 60M200 70l24 56' stroke='#f5cd8f' stroke-width='12' stroke-linecap='round'/>`,
+"牛乳":`<path d='M30 110L100 24l70 86z' fill='#85c1e9' stroke='#21618c' stroke-width='5'/><rect x='30' y='110' width='140' height='270' fill='#fff' stroke='#21618c' stroke-width='5'/><rect x='30' y='200' width='140' height='110' fill='#3498db'/><text x='100' y='275' text-anchor='middle' font-size='44' font-weight='bold' fill='#fff'>MILK</text>`,
+"ペットボトル":`<rect x='84' y='6' width='32' height='16' rx='4' fill='#27ae60'/><path d='M80 20h40l30 50v200q0 20-20 20H70q-20 0-20-20V70z' fill='#a9dfbf' stroke='#1e8449' stroke-width='5'/><rect x='62' y='120' width='76' height='100' fill='#27ae60'/><text x='100' y='188' text-anchor='middle' font-size='48' font-weight='bold' fill='#fff'>茶</text>`,
+"大根":`<g stroke='#27ae60' stroke-width='14' fill='none' stroke-linecap='round'><path d='M100 120C70 80 50 50 56 14'/><path d='M100 120C100 80 100 50 100 8'/><path d='M100 120C130 80 150 50 144 14'/></g><path d='M58 124Q40 140 44 210Q52 400 100 492Q148 400 156 210Q160 140 142 124Q100 108 58 124Z' fill='#f4f6f6' stroke='#a6acaf' stroke-width='5'/><path d='M70 250h18M118 320h16M82 380h14' stroke='#bfc9ca' stroke-width='4' stroke-linecap='round'/>`,
+"キャベツ":`<circle cx='150' cy='160' r='130' fill='#82e0aa' stroke='#1e8449' stroke-width='6'/><path d='M150 40Q110 160 150 280M150 40Q190 160 150 280M150 160Q60 140 40 100M150 160Q240 140 260 100M150 160Q70 200 50 240M150 160Q230 200 250 240M40 170Q150 60 260 170' stroke='#27ae60' stroke-width='6' fill='none'/>`,
+"缶詰":`<g transform='scale(2)'>${SV["缶詰"]}</g>`,
+"スイカ":`<g transform='scale(1.667)'>${SV["スイカ"]}</g>`,
+"お米":`<g transform='scale(2)'>${SV["お米"]}</g>`};
+const IM={};
+D.forEach(d=>{const cs=norm(d.cells),W=wd(cs),H=ht(cs),i=new Image();i.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${W*100}' height='${H*100}' viewBox='0 0 ${W*100} ${H*100}'>${SV2[d.n]||SV[d.n]}</svg>`);IM[d.n]=i});
+function reset(){G=Array.from({length:R},()=>Array(C).fill(null));P=[];stock=[null,null];score=0;broken=0;time=TL;over=false;col=2;nxt=rd();spawn()}
+function spawn(){cur={d:nxt,cells:norm(nxt.cells),q:0};nxt=rd();col=Math.min(col,C-wd(cur.cells));cy=-ht(cur.cells);
+  let ok=false;for(let c=0;c<=C-wd(cur.cells);c++)if(LR(cur.cells,c)>=0)ok=true;if(!ok)over=true}
+function canAt(a,c){if(c<0||c>C-wd(a))return false;return fits(a,Math.floor(cy),c)&&fits(a,Math.ceil(cy),c)}
+const LRf=(a,c)=>{let r=Math.max(-5,Math.floor(cy));while(fits(a,r+1,c))r++;return r};
+function moveTo(px){if(over)return;const c=Math.max(0,Math.min(C-wd(cur.cells),Math.floor((px-BX)/S)-(wd(cur.cells)>>1)));if(canAt(cur.cells,c))col=c}
+function shift(v){if(!over&&canAt(cur.cells,col+v)){col+=v;lk=0;tone(240,.025,"square",.025)}}
+function rotate(){if(over)return;const n=rot(cur.cells),c=Math.min(col,C-wd(n));if(canAt(n,c)){cur.cells=n;cur.q=(cur.q+1)%4;col=c;lk=0;SND.rot()}}
+function dropNow(){if(!over)place(LRf(cur.cells,col))}
+function place(t){if(t<0){over=true;return}const p={d:cur.d,cells:cur.cells,r:t,c:col,q:cur.q};P.push(p);put(p);score+=p.d.p;SND.thud();setTimeout(SND.beep,60);settle();spawn()}
+function gravity(){let m=true;while(m){m=false;for(const p of P){clr(p);if(fits(p.cells,p.r+1,p.c)){p.r++;m=true}put(p)}}}
+function load(p){const s=new Set(),q=[p];while(q.length){const a=q.pop();for(const[dr,dc]of a.cells){const rr=a.r+dr-1,cc=a.c+dc;if(rr<0)continue;const b=G[rr][cc];if(b&&b!==a&&b!==p&&!s.has(b)){s.add(b);q.push(b)}}}let t=0;s.forEach(b=>t+=b.d.w);return t}
+function settle(){for(;;){gravity();const p=P.find(p=>load(p)>p.d.k);if(!p)break;clr(p);P.splice(P.indexOf(p),1);score=Math.max(0,score-p.d.p);SND.crush();if(++broken>=3){over=true;break}}}
+function tap(px,py){if(px>=322&&py<44){mute=!mute;return}
+  if(over){reset();return}
+  for(let i=0;i<2;i++){const[a,b,w,h]=SL[i];if(px>=a&&px<a+w&&py>=b&&py<b+h){
+    SND.swap();if(!stock[i]){stock[i]=cur.d;spawn()}else{const t=stock[i];stock[i]=cur.d;cur={d:t,cells:norm(t.cells),q:0};col=Math.min(col,C-wd(cur.cells));cy=-ht(cur.cells)}return}}
+  if(py<630)rotate();
+}
+const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+cv.addEventListener("pointerdown",e=>{if(e.button===2)return;cv.setPointerCapture(e.pointerId);au();const[px,py]=pos(e);dn=[px,py,performance.now(),0];lx=px;ax=0});
+cv.addEventListener("pointermove",e=>{const px=pos(e)[0];if(dn)dn[3]=Math.max(dn[3],Math.abs(px-dn[0]));if(lx==null||over){lx=px;return}ax+=px-lx;lx=px;while(ax>=S){shift(1);ax-=S}while(ax<=-S){shift(-1);ax+=S}});
+cv.addEventListener("pointerleave",()=>{lx=null});
+cv.addEventListener("pointerup",e=>{if(!dn)return;const[px,py]=pos(e),dx=px-dn[0],dy=py-dn[1];
+  if(Math.hypot(dx,dy)<10)tap(px,py);else if(dy>90&&dn[3]<S*1.5&&performance.now()-dn[2]<500)dropNow();dn=null;if(e.pointerType!=="mouse")lx=null});
+cv.addEventListener("contextmenu",e=>{e.preventDefault();au();dropNow()});
+addEventListener("keydown",e=>{au();const k=e.key;if(over){if(k==="Enter")reset();return}
+  if(k==="ArrowLeft")shift(-1);else if(k==="ArrowRight")shift(1);else if(k==="ArrowUp"||k==="z")rotate();else if(k==="ArrowDown"||k===" ")dropNow();else return;e.preventDefault()});
+function cells(a,ox,oy,s,d,lab,q=0){const im=IM[d.n];if(im&&im.complete&&im.naturalWidth){const bw=wd(a)*s,bh=ht(a)*s;X.save();X.translate(ox+bw/2,oy+bh/2);X.rotate(q*Math.PI/2);const w=q%2?bh:bw,h=q%2?bw:bh;X.drawImage(im,-w/2,-h/2,w,h);X.restore();return}
+  X.fillStyle=d.col;X.strokeStyle="#555";X.lineWidth=1;
+  a.forEach(([dr,dc])=>{X.fillRect(ox+dc*s+1,oy+dr*s+1,s-2,s-2);X.strokeRect(ox+dc*s+1,oy+dr*s+1,s-2,s-2)});
+  if(lab){const bw=wd(a)*s,bh=ht(a)*s,cx=ox+bw/2,cyy=oy+bh/2+3;X.fillStyle="#333";X.textAlign="center";
+    X.font="bold "+Math.max(7,Math.min(11,Math.floor(bw/d.n.length)))+"px sans-serif";X.fillText(d.n,cx,cyy)}
+}
+function mini(d,a,b,w,h){const cs=norm(d.cells),s=Math.min(18,Math.floor(44/Math.max(wd(cs),ht(cs))));cells(cs,a+(w-wd(cs)*s)/2,b+(h-14-ht(cs)*s)/2,s,d,false);
+  X.fillStyle="#333";X.textAlign="center";X.font="10px sans-serif";X.fillText(d.n+" 重"+d.w+" 耐"+d.k,a+w/2,b+h-4)}
+function basket(){const w=C*S,h=R*S;X.fillStyle="#c0392b";X.beginPath();X.roundRect(BX-10,BY-6,w+20,h+16,[6,6,18,18]);X.fill();X.fillStyle="#fdf0ea";X.fillRect(BX,BY,w,h);X.fillStyle="#922b21";for(let y=BY+14;y<BY+h-10;y+=26){X.beginPath();X.roundRect(BX-7,y,4,14,2);X.fill();X.beginPath();X.roundRect(BX+w+3,y,4,14,2);X.fill()}X.fillStyle="rgba(0,0,0,.06)";X.fillRect(BX,BY+h-6,w,6);X.fillStyle="#e74c3c";X.beginPath();X.roundRect(BX-14,BY-12,w+28,12,6);X.fill()}
+function cashier(){const t=performance.now()/1000;X.fillStyle="#ffe0bd";X.beginPath();X.arc(36,98,19,0,7);X.fill();X.fillStyle="#e74c3c";X.beginPath();X.roundRect(15,74,42,12,5);X.fill();X.fillRect(12,84,48,4);X.fillStyle="#333";X.beginPath();X.moveTo(31,97);X.arc(29,97,2,0,7);X.moveTo(45,97);X.arc(43,97,2,0,7);X.fill();X.beginPath();X.ellipse(36,106,5,over?2:3+Math.abs(Math.sin(t*6))*3,0,0,7);X.fill();if(over)return;X.fillStyle="#fff";X.strokeStyle="#999";X.lineWidth=2;X.beginPath();X.roundRect(70,70,276,48,12);X.fill();X.stroke();X.beginPath();X.moveTo(70,90);X.lineTo(58,98);X.lineTo(70,104);X.closePath();X.fill();X.stroke();X.fillStyle="#fff";X.fillRect(68,91,5,12);X.fillStyle="#333";X.font="bold 18px sans-serif";X.textAlign="center";X.fillText(cur.d.n+"が1点～",208,100)}
+function draw(){
+  X.clearRect(0,0,360,712);basket();cashier();
+  X.strokeStyle="rgba(150,90,60,.18)";X.lineWidth=1;
+  for(let i=0;i<=C;i++){X.beginPath();X.moveTo(BX+i*S,BY);X.lineTo(BX+i*S,BY+R*S);X.stroke()}
+  for(let i=0;i<=R;i++){X.beginPath();X.moveTo(BX,BY+i*S);X.lineTo(BX+C*S,BY+i*S);X.stroke()}
+  
+  P.forEach(p=>{const r=load(p)/p.d.k;cells(p.cells,BX+p.c*S,BY+p.r*S,S,p.d,true,p.q);if(r>=.4){const ph0=p.ph||0;p.ph=ph0+DT*(1+(r-.4)/.6*7)*6.283;if(r>=.7&&Math.floor(p.ph/6.283)>Math.floor(ph0/6.283))SND.warn();const a=(Math.sin(p.ph)+1)/2*.7;X.fillStyle="rgba(231,76,60,"+a+")";p.cells.forEach(([dr,dc])=>X.fillRect(BX+(p.c+dc)*S+1,BY+(p.r+dr)*S+1,S-2,S-2))}});
+  if(!over){const t=LRf(cur.cells,col);if(t>=0){X.fillStyle="rgba(0,0,0,.12)";cur.cells.forEach(([dr,dc])=>X.fillRect(BX+(col+dc)*S+1,BY+(t+dr)*S+1,S-2,S-2))}
+    cells(cur.cells,BX+col*S,BY+cy*S,S,cur.d,true,cur.q)}
+  X.fillStyle="#333";X.font="bold 16px sans-serif";X.textAlign="left";X.fillText("お会計 ¥"+score.toLocaleString(),BX,28);
+  X.textAlign="right";X.fillText("TIME "+Math.ceil(time),BX+C*S,28);X.textAlign="left";X.fillStyle=broken?"#c0392b":"#333";X.fillText("BREAK "+broken+"/3",BX,52);X.font="20px sans-serif";X.textAlign="center";X.fillText(mute?"🔇":"🔊",338,30);X.fillStyle="#333";
+  X.font="bold 12px sans-serif";X.textAlign="left";X.fillText("NEXT",15,634);X.fillText("STOCK",125,634);
+  X.fillStyle="#d5d8dc";X.beginPath();X.roundRect(15,640,100,62,10);X.fill();mini(nxt,15,640,100,62);
+  SL.forEach(([a,b,w,h],i)=>{X.fillStyle="#d5d8dc";X.beginPath();X.roundRect(a,b,w,h,10);X.fill();if(stock[i])mini(stock[i],a,b,w,h)});
+  if(over){X.fillStyle="rgba(0,0,0,.6)";X.fillRect(0,0,360,712);X.fillStyle="#fff";X.textAlign="center";
+    X.font="bold 34px sans-serif";X.fillText("GAME OVER",180,380);X.font="bold 22px sans-serif";X.fillText("お会計 ¥"+score.toLocaleString(),180,420);
+    X.font="16px sans-serif";X.fillText("タップでもう一度",180,460)}
+}
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000);last=t;DT=dt;
+  if(!over){time-=dt;if(time<=0){time=0;over=true}else{const tg=LRf(cur.cells,col);if(cy<tg)cy=Math.min(tg,cy+(3+(TL-time)/20)*dt);if(cy>=tg){lk+=dt;if(lk>=.8)place(tg)}else lk=0}}
+  if(over!==wo){wo=over;if(over){SND.over();setTimeout(SND.bell,900)}}draw();requestAnimationFrame(loop);
+}
+reset();last=performance.now();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
