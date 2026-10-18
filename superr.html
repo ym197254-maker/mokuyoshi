@@ -71,13 +71,26 @@ const SV2={
 "お米":`<g transform='scale(2)'>${SV["お米"]}</g>`};
 const IM={};
 D.forEach(d=>{const cs=norm(d.cells),W=wd(cs),H=ht(cs),i=new Image();i.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${W*100}' height='${H*100}' viewBox='0 0 ${W*100} ${H*100}'>${SV2[d.n]||SV[d.n]}</svg>`);IM[d.n]=i});
-const NC=8,NEED=[6,8,9,10,9,8,7,6],TQ=["ペットボトル","卵","スイカ","お米","スポンジ","大根"],TM=[["画面を左右にスワイプして","商品を動かそう"],["タップすると回転するよ","回してみよう"],["下にスワイプで落とせるよ","すばやく下に!"],["下の枠をタップすると","商品をストックできるよ"],["重い物を上に乗せると","下が潰れるよ(点滅に注意)"]];
-let tut=false,tst=0,tm=0,tq=0,st="title",sales=0,sold={},cu=0,need=0,placed=0,nt=0,best=0,newBest=false,win=false;over=false;
+const NC=8,NEED=[6,8,9,10,9,8,7,6],TQ=["ペットボトル","卵","スイカ","お米","スポンジ","大根"],TM=[["画面を左右にスワイプして","◀ ▶ のように動かそう"],["画面をタップすると回転","丸のあたりをタップ!"],["下にスワイプで落とせるよ","▼ の方向にすばやく!"],["下の枠(丸の所)をタップすると","商品をストックできるよ"],["1度置いた商品は、丸の所を","長押しして横にずらせるよ"],["重い物を上に乗せると","下が潰れるよ(点滅に注意)"]];
+let gp=null,lp=null,tut=false,tst=0,tm=0,tq=0,st="title",sales=0,sold={},cu=0,need=0,placed=0,nt=0,best=0,newBest=false,win=false;over=false;
 try{best=+localStorage.getItem("bestSales")||0}catch(e){}
 function finish(){newBest=sales>best;if(newBest){best=sales;try{localStorage.setItem("bestSales",best)}catch(e){}}}
 function clearCustomer(){sales+=score;P.forEach(p=>sold[p.d.n]=(sold[p.d.n]||0)+1);if(cu>=NC-1){win=true;over=true;return}SND.bell();cu++;st="next";nt=2.2}
 function startCustomer(){G=Array.from({length:R},()=>Array(C).fill(null));P=[];score=0;broken=0;placed=0;need=tut?6:NEED[cu];time=0;over=false;col=2;st="play";nxt=rd();spawn()}
-function tev(e){if(!tut)return;if(tst===0&&e==="move"){if(++tm>=3)tst=1}else if(tst===1&&e==="rot")tst=2;else if(tst===2&&e==="drop")tst=3;else if(tst===3&&e==="stock")tst=4}
+const hitCur=(cs,r,c)=>cur&&cs.some(([a,b])=>{const rr=r+a,cc=c+b;return rr>=Math.floor(cy)&&rr<=Math.ceil(cy)+ht(cur.cells)-1&&cc>=col&&cc<col+wd(cur.cells)});
+function slide(v){if(!gp)return;clr(gp);const nc=gp.c+v;if(fits(gp.cells,gp.r,nc)&&!hitCur(gp.cells,gp.r,nc)){gp.c=nc;tev("slide");tone(300,.03,"square",.04)}put(gp)}
+function release(){gp=null;let tp=null;if(cur&&cy>=0){const r0=Math.ceil(cy);if(cur.cells.every(([a,b])=>r0+a<R&&!G[r0+a][col+b])){tp={d:{w:0},cells:cur.cells,r:r0,c:col};put(tp)}}settle();if(tp)clr(tp)}
+function guide(){X.save();const t=performance.now()/1000,p=.5+.5*Math.sin(t*5),cw=wd(cur.cells)*S,ch=ht(cur.cells)*S,px=BX+col*S+cw/2,py=BY+cy*S+ch/2;X.textAlign="center";X.lineWidth=4;X.strokeStyle="#e67e22";X.fillStyle="#e67e22";
+const ring=(x,y,r)=>{X.globalAlpha=.6+.4*p;X.beginPath();X.arc(x,y,r+3*p,0,7);X.stroke();X.globalAlpha=1};
+const arr=(x,y,s)=>{X.font="bold 30px sans-serif";X.fillText(s,x,y)};
+const lab=(x,y,s)=>{X.font="bold 14px sans-serif";X.fillText(s,x,y)};
+if(tst===0){const o=8*Math.sin(t*6);arr(px-cw/2-24-o,py+10,"◀");arr(px+cw/2+24+o,py+10,"▶")}
+else if(tst===1){ring(px,py,26);lab(px,py+ch/2+30,"タップ")}
+else if(tst===2){arr(px,py+ch/2+26+(t*60)%30,"▼")}
+else if(tst===3){SL.forEach(([a,b,w,h])=>{X.beginPath();X.roundRect(a-3,b-3,w+6,h+6,12);X.stroke()});ring(SL[0][0]+SL[0][2]/2,SL[0][1]+SL[0][3]/2,22);lab(292,630,"ここをタップ")}
+else if(tst===4){const q=[...P].reverse().find(q=>load(q)===0);if(q){const bw=wd(q.cells)*S,bh=ht(q.cells)*S,x=BX+q.c*S+bw/2,y=BY+q.r*S+bh/2,o=6*Math.sin(t*6),m=Math.max(bw,bh)/2;ring(x,y,m+8);arr(x-bw/2-22-o,y+10,"◀");arr(x+bw/2+22+o,y+10,"▶");lab(x,y-m-16,"長押し")}}
+X.restore()}
+function tev(e){if(!tut)return;if(tst===0&&e==="move"){if(++tm>=3)tst=1}else if(tst===1&&e==="rot")tst=2;else if(tst===2&&e==="drop")tst=3;else if(tst===3&&e==="stock")tst=4;else if(tst===4&&e==="slide")tst=5}
 function startTut(){tut=true;tst=0;tm=0;tq=0;stock=[null,null];sales=0;sold={};cu=0;win=false;newBest=false;startCustomer()}
 function reset(){tut=false;stock=[null,null];sales=0;sold={};cu=0;win=false;newBest=false;startCustomer()}
 function spawn(){cur={d:nxt,cells:norm(nxt.cells),q:0};nxt=rd();col=Math.min(col,C-wd(cur.cells));cy=-ht(cur.cells);
@@ -99,10 +112,10 @@ function tap(px,py){if(px>=322&&py<44){mute=!mute;return}
   if(py<630)rotate();
 }
 const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
-cv.addEventListener("pointerdown",e=>{if(e.button===2)return;cv.setPointerCapture(e.pointerId);au();const[px,py]=pos(e);dn=[px,py,performance.now(),0];lx=px;ax=0});
-cv.addEventListener("pointermove",e=>{const px=pos(e)[0];if(dn)dn[3]=Math.max(dn[3],Math.abs(px-dn[0]));if(lx==null||over||st!=="play"){lx=px;return}ax+=px-lx;lx=px;while(ax>=S){shift(1);ax-=S}while(ax<=-S){shift(-1);ax+=S}});
+cv.addEventListener("pointerdown",e=>{if(e.button===2)return;cv.setPointerCapture(e.pointerId);au();const[px,py]=pos(e);dn=[px,py,performance.now(),0];lx=px;ax=0;if(st==="play"&&!over&&(!tut||tst>=4)){const c=Math.floor((px-BX)/S),r=Math.floor((py-BY)/S),p=r>=0&&r<R&&c>=0&&c<C?G[r][c]:null;if(p&&load(p)===0)lp=setTimeout(()=>{if(dn&&!gp){gp=p;ax=0;SND.swap()}},350)}});
+cv.addEventListener("pointermove",e=>{const px=pos(e)[0];if(dn)dn[3]=Math.max(dn[3],Math.abs(px-dn[0]));if(lp&&dn&&Math.hypot(px-dn[0],pos(e)[1]-dn[1])>=10){clearTimeout(lp);lp=null}if(gp){ax+=px-lx;lx=px;while(ax>=S){slide(1);ax-=S}while(ax<=-S){slide(-1);ax+=S}return}if(lx==null||over||st!=="play"){lx=px;return}ax+=px-lx;lx=px;while(ax>=S){shift(1);ax-=S}while(ax<=-S){shift(-1);ax+=S}});
 cv.addEventListener("pointerleave",()=>{lx=null});
-cv.addEventListener("pointerup",e=>{if(!dn)return;const[px,py]=pos(e),dx=px-dn[0],dy=py-dn[1];
+cv.addEventListener("pointerup",e=>{clearTimeout(lp);lp=null;if(gp){release();dn=null;lx=null;return}if(!dn)return;const[px,py]=pos(e),dx=px-dn[0],dy=py-dn[1];
   if(Math.hypot(dx,dy)<10)tap(px,py);else if(dy>90&&dn[3]<S*1.5&&performance.now()-dn[2]<500)dropNow();dn=null;if(e.pointerType!=="mouse")lx=null});
 cv.addEventListener("contextmenu",e=>{e.preventDefault();au();dropNow()});
 addEventListener("keydown",e=>{au();const k=e.key;if(st==="title"){if(k==="Enter"||k===" ")reset();return}if(st==="next")return;if(over){if(k==="Enter")st="title";return}
@@ -116,7 +129,7 @@ function cells(a,ox,oy,s,d,lab,q=0){const im=IM[d.n];if(im&&im.complete&&im.natu
 function mini(d,a,b,w,h){const cs=norm(d.cells),s=Math.min(18,Math.floor(44/Math.max(wd(cs),ht(cs))));cells(cs,a+(w-wd(cs)*s)/2,b+(h-14-ht(cs)*s)/2,s,d,false);
   X.fillStyle="#333";X.textAlign="center";X.font="10px sans-serif";X.fillText(d.n+" 重"+d.w+" 耐"+d.k,a+w/2,b+h-4)}
 function basket(){const w=C*S,h=R*S;X.fillStyle="#c0392b";X.beginPath();X.roundRect(BX-10,BY-6,w+20,h+16,[6,6,18,18]);X.fill();X.fillStyle="#fdf0ea";X.fillRect(BX,BY,w,h);X.fillStyle="#922b21";for(let y=BY+14;y<BY+h-10;y+=26){X.beginPath();X.roundRect(BX-7,y,4,14,2);X.fill();X.beginPath();X.roundRect(BX+w+3,y,4,14,2);X.fill()}X.fillStyle="rgba(0,0,0,.06)";X.fillRect(BX,BY+h-6,w,6);X.fillStyle="#e74c3c";X.beginPath();X.roundRect(BX-14,BY-12,w+28,12,6);X.fill()}
-function cashier(){const t=performance.now()/1000;X.fillStyle="#ffe0bd";X.beginPath();X.arc(36,98,19,0,7);X.fill();X.fillStyle="#e74c3c";X.beginPath();X.roundRect(15,74,42,12,5);X.fill();X.fillRect(12,84,48,4);X.fillStyle="#333";X.beginPath();X.moveTo(31,97);X.arc(29,97,2,0,7);X.moveTo(45,97);X.arc(43,97,2,0,7);X.fill();X.beginPath();X.ellipse(36,106,5,over?2:3+Math.abs(Math.sin(t*6))*3,0,0,7);X.fill();if(over)return;X.fillStyle="#fff";X.strokeStyle="#999";X.lineWidth=2;X.beginPath();X.roundRect(70,70,276,48,12);X.fill();X.stroke();X.beginPath();X.moveTo(70,90);X.lineTo(58,98);X.lineTo(70,104);X.closePath();X.fill();X.stroke();X.fillStyle="#fff";X.fillRect(68,91,5,12);X.fillStyle="#333";X.font="bold 18px sans-serif";X.textAlign="center";if(tut){X.font="bold 13px sans-serif";const m=TM[Math.min(tst,4)];X.fillText(m[0],208,92);X.fillText(m[1],208,110)}else{X.font="11px sans-serif";X.fillText("お客さん "+(cu+1)+"/"+NC+"人目",208,86);X.font="bold 18px sans-serif";X.fillText(cur.d.n+"が1点～",208,108)}}
+function cashier(){const t=performance.now()/1000;X.fillStyle="#ffe0bd";X.beginPath();X.arc(36,98,19,0,7);X.fill();X.fillStyle="#e74c3c";X.beginPath();X.roundRect(15,74,42,12,5);X.fill();X.fillRect(12,84,48,4);X.fillStyle="#333";X.beginPath();X.moveTo(31,97);X.arc(29,97,2,0,7);X.moveTo(45,97);X.arc(43,97,2,0,7);X.fill();X.beginPath();X.ellipse(36,106,5,over?2:3+Math.abs(Math.sin(t*6))*3,0,0,7);X.fill();if(over)return;X.fillStyle="#fff";X.strokeStyle="#999";X.lineWidth=2;X.beginPath();X.roundRect(70,70,276,48,12);X.fill();X.stroke();X.beginPath();X.moveTo(70,90);X.lineTo(58,98);X.lineTo(70,104);X.closePath();X.fill();X.stroke();X.fillStyle="#fff";X.fillRect(68,91,5,12);X.fillStyle="#333";X.font="bold 18px sans-serif";X.textAlign="center";if(tut){X.font="bold 13px sans-serif";const m=TM[Math.min(tst,5)];X.fillText(m[0],208,92);X.fillText(m[1],208,110)}else{X.font="11px sans-serif";X.fillText("お客さん "+(cu+1)+"/"+NC+"人目",208,86);X.font="bold 18px sans-serif";X.fillText(cur.d.n+"が1点～",208,108)}}
 function title(){X.fillStyle="#fdf0ea";X.fillRect(0,0,360,712);X.fillStyle="#c0392b";X.beginPath();X.roundRect(30,110,300,150,18);X.fill();X.fillStyle="#fff";X.textAlign="center";X.font="bold 36px sans-serif";X.fillText("レジカゴ",180,170);X.fillText("詰めパズル",180,218);X.font="14px sans-serif";X.fillText("お客さん8人にお会計しよう",180,246);X.fillStyle="#333";X.font="bold 18px sans-serif";X.fillText("最高売上",180,330);X.font="bold 40px sans-serif";X.fillText("¥"+best.toLocaleString(),180,378);X.fillStyle="#c0392b";X.beginPath();X.roundRect(60,420,240,56,14);X.fill();X.fillStyle="#fff";X.font="bold 22px sans-serif";X.fillText("スタート",180,456);X.strokeStyle="#c0392b";X.lineWidth=3;X.beginPath();X.roundRect(60,492,240,48,14);X.stroke();X.fillStyle="#c0392b";X.font="bold 18px sans-serif";X.fillText("チュートリアル",180,523);X.fillStyle="#666";X.font="13px sans-serif";X.fillText("はじめての人は、チュートリアルから!",180,580);X.font="20px sans-serif";X.fillText(mute?"🔇":"🔊",338,30)}
 function receipt(){X.fillStyle="rgba(0,0,0,.55)";X.fillRect(0,0,360,712);const ks=D.filter(d=>sold[d.n]),h=180+Math.max(1,ks.length)*20,y0=Math.max(30,(712-h)/2-10);X.fillStyle="#fffef8";X.fillRect(40,y0,280,h);X.fillStyle="#333";X.textAlign="center";X.font="bold 20px sans-serif";X.fillText(win?"全員お会計完了!":"ゲームオーバー",180,y0+34);X.font="12px sans-serif";X.fillText(win?"ありがとうございました":"お客さんが帰ってしまいました…",180,y0+54);X.fillText("--- RECEIPT ---",180,y0+76);X.textAlign="left";let y=y0+98;if(!ks.length){X.fillText("(まだお会計なし)",56,y);y+=20}ks.forEach(d=>{X.textAlign="left";X.fillText(d.n+" x"+sold[d.n],56,y);X.textAlign="right";X.fillText("¥"+(d.p*sold[d.n]).toLocaleString(),304,y);y+=20});X.fillRect(56,y-8,248,1);X.font="bold 16px sans-serif";X.textAlign="left";X.fillText("累計売上",56,y+16);X.textAlign="right";X.fillText("¥"+sales.toLocaleString(),304,y+16);X.textAlign="center";if(newBest){X.fillStyle="#e67e22";X.font="bold 22px sans-serif";X.fillText("🎉 最高売上達成!",180,y+54)}else{X.fillStyle="#666";X.font="13px sans-serif";X.fillText("最高売上 ¥"+best.toLocaleString(),180,y+52)}X.fillStyle="#fff";X.font="16px sans-serif";X.fillText("タップでタイトルへ",180,y0+h+36)}
 function banner(){X.fillStyle="rgba(0,0,0,.55)";X.fillRect(0,0,360,712);X.fillStyle="#fff";X.textAlign="center";X.font="bold 26px sans-serif";if(tut){X.fillText("チュートリアル完了!",180,350);X.font="16px sans-serif";X.fillText("タイトルに戻ります",180,395);return}X.fillText("ありがとうございました!",180,330);X.font="bold 20px sans-serif";X.fillText("お会計 ¥"+score.toLocaleString(),180,375);X.font="16px sans-serif";X.fillText("次のお客さん ("+(cu+1)+"/"+NC+")",180,420)}
@@ -127,9 +140,9 @@ function draw(){
   for(let i=0;i<=R;i++){X.beginPath();X.moveTo(BX,BY+i*S);X.lineTo(BX+C*S,BY+i*S);X.stroke()}
   
   P.forEach(p=>{const r=load(p)/p.d.k;cells(p.cells,BX+p.c*S,BY+p.r*S,S,p.d,true,p.q);if(r>=.4){const ph0=p.ph||0;p.ph=ph0+DT*(1+(r-.4)/.6*7)*6.283;if(r>=.7&&Math.floor(p.ph/6.283)>Math.floor(ph0/6.283))SND.warn();const a=(Math.sin(p.ph)+1)/2*.7;X.fillStyle="rgba(231,76,60,"+a+")";p.cells.forEach(([dr,dc])=>X.fillRect(BX+(p.c+dc)*S+1,BY+(p.r+dr)*S+1,S-2,S-2))}});
-  if(st==="play"&&!over){const t=LRf(cur.cells,col);if(t>=0){X.fillStyle="rgba(0,0,0,.12)";cur.cells.forEach(([dr,dc])=>X.fillRect(BX+(col+dc)*S+1,BY+(t+dr)*S+1,S-2,S-2))}
+  if(gp){X.strokeStyle="#f1c40f";X.lineWidth=3;gp.cells.forEach(([dr,dc])=>X.strokeRect(BX+(gp.c+dc)*S+1,BY+(gp.r+dr)*S+1,S-2,S-2))}if(st==="play"&&!over){const t=LRf(cur.cells,col);if(t>=0){X.fillStyle="rgba(0,0,0,.12)";cur.cells.forEach(([dr,dc])=>X.fillRect(BX+(col+dc)*S+1,BY+(t+dr)*S+1,S-2,S-2))}
     cells(cur.cells,BX+col*S,BY+cy*S,S,cur.d,true,cur.q)}
-  X.fillStyle="#333";X.font="bold 16px sans-serif";X.textAlign="left";X.fillText("お会計 ¥"+score.toLocaleString(),BX,28);
+  if(tut&&st==="play"&&!gp)guide();X.fillStyle="#333";X.font="bold 16px sans-serif";X.textAlign="left";X.fillText("お会計 ¥"+score.toLocaleString(),BX,28);
   X.textAlign="right";X.fillText("残り "+Math.max(0,need-placed)+"点",BX+C*S,28);X.textAlign="left";X.fillStyle="#333";X.fillText("累計 ¥"+sales.toLocaleString(),BX,52);X.textAlign="right";X.fillStyle=broken?"#c0392b":"#333";X.fillText("BREAK "+broken+"/3",BX+C*S,52);X.font="20px sans-serif";X.textAlign="center";X.fillText(mute?"🔇":"🔊",338,30);X.fillStyle="#333";
   X.font="bold 12px sans-serif";X.textAlign="left";X.fillText("NEXT",15,634);X.fillText("STOCK",125,634);
   X.fillStyle="#d5d8dc";X.beginPath();X.roundRect(15,640,100,62,10);X.fill();mini(nxt,15,640,100,62);
@@ -140,7 +153,7 @@ function draw(){
 }
 function loop(t){
   const dt=Math.min(.05,(t-last)/1000);last=t;DT=dt;
-  if(st==="play"&&!over){{const tg=LRf(cur.cells,col);if(cy<tg&&!(tut&&tst<4))cy=Math.min(tg,cy+(2.6+cu*.4)*dt);if(cy>=tg){lk+=dt;if(lk>=.8)place(tg)}else lk=0}}
+  if(st==="play"&&!over&&!gp){{const tg=LRf(cur.cells,col);if(cy<tg&&!(tut&&tst<5))cy=Math.min(tg,cy+(2.6+cu*.4)*dt);if(cy>=tg){lk+=dt;if(lk>=.8)place(tg)}else lk=0}}
   if(st==="next"){nt-=dt;if(nt<=0){if(tut){tut=false;st="title"}else startCustomer()}}if(over!==wo){wo=over;if(over&&tut){tut=false;over=false;wo=false;st="title"}else if(over){st="over";finish();if(win)SND.bell();else{SND.over();setTimeout(SND.bell,900)}}}draw();requestAnimationFrame(loop);
 }
 last=performance.now();requestAnimationFrame(loop);
