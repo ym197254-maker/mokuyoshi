@@ -95,6 +95,17 @@ button:focus-visible{outline:3px solid #ffd54a}
 p.n{font-size:12px;color:var(--sub);max-width:520px;margin:12px 0 0}
 #fmw{display:none;margin-top:6px;border:2px solid #fff;border-radius:4px;background:#000;line-height:0}
 #fmap{display:block;margin:0 auto;width:auto;max-width:100%;max-height:150px;image-rendering:pixelated}
+#title #bcont{order:1;width:74%!important;padding:18px!important;font-size:21px!important;font-weight:bold}
+#title #bkoto{order:2}
+#title #tn{order:3}
+#title #bnew{order:4;width:34%!important;padding:6px!important;font-size:12px!important;opacity:.75;margin-top:8px}
+#title.ns #bcont{display:none}
+#title.ns #bnew{order:1;width:74%!important;padding:18px!important;font-size:21px!important;opacity:1;margin-top:0;font-weight:bold}
+#tcf{position:absolute;inset:0;z-index:40;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;text-align:center;color:#fff}
+#tcf div{font-size:16px;line-height:1.8}
+#tcf button{order:0}
+#title #tcf #tcn{width:74%!important;padding:16px!important;font-size:19px!important;font-weight:bold;opacity:1;margin:0}
+#title #tcf #tcy{width:48%!important;padding:6px!important;font-size:12px!important;opacity:.8;margin-top:10px}
 </style>
 </head>
 <body>
@@ -752,7 +763,7 @@ function ioOpen(mode){const ta=$('ta'),ok=$('iok');$('io').style.display='flex';
   ok.onclick=()=>{let old=null;try{old=localStorage.getItem(SK);const j=decodeURIComponent(escape(atob(ta.value.trim())));JSON.parse(j);localStorage.setItem(SK,j);
    if(load()){st();ioClose();if(!started){begin();$('info').textContent='復活の言霊で再開した。';if(p.pend>0&&p.pend<4)setTimeout(()=>bossCut(p.pend),800);else if(p.pend===4)setTimeout(finale,800)}else{closeBox();$('info').textContent='復活の言霊を読み込んだ。'}}else{if(old)localStorage.setItem(SK,old);else try{localStorage.removeItem(SK)}catch(x){}$('iot').textContent='読み込めませんでした。'}}catch(e){try{if(old)localStorage.setItem(SK,old);else localStorage.removeItem(SK)}catch(x){}$('iot').textContent='言霊が正しくありません。'}}}}
 function fieldItems(){if(B||!started||intro)return;box('📱','メニュー');say(['どうしますか?'],mainMenu)}
-function mainMenu(){$('bt').classList.add('mn');$('em').textContent='📱';$('enm').textContent='メニュー';cmds([['🎒 道具',()=>{$('enm').textContent='道具';say(['道具を使いますか?'],fMenu)}],['💾 セーブ',()=>{save();say(['セーブしました!'],mainMenu)}],['🔊 サウンド設定',soundMenu],['📜 依頼リスト',questList],['📋 復活の言霊',dataMenu],...(/^piko/.test(p.name)?[['🛠 マップ編集',edStart]]:[]),['とじる',closeBox]])}
+function mainMenu(){$('bt').classList.add('mn');$('em').textContent='📱';$('enm').textContent='メニュー';cmds([['🎒 道具',()=>{$('enm').textContent='道具';say(['道具を使いますか?'],fMenu)}],['💾 セーブ',()=>{save();say(['セーブしました!'],mainMenu)}],['🔊 サウンド設定',soundMenu],['📜 依頼リスト',questList],['📋 復活の言霊',dataMenu],['とじる',closeBox]])}
 function mmImg(m){if(m.img)return m.img;const sc=m.w<100?4:1,c=document.createElement('canvas');c.width=m.w*sc;c.height=m.h*sc;const g=c.getContext('2d'),
  col={0:'#3a7d44',1:'#25602f',2:'#1f5fa8',3:'#d9c48a',4:'#80848c',6:'#10294b',7:'#4a86bf'};
  for(let y=0;y<m.h;y++)for(let x=0;x<m.w;x++){g.fillStyle=col[m.t[y*m.w+x]];g.fillRect(x*sc,y*sc,sc,sc)}
@@ -803,7 +814,7 @@ async function ending(){B={dlg:true};const f=$('fx'),wasW=f.style.background.ind
  try{await an.finished;await new Promise(r=>setTimeout(r,3500))}catch(e){}
  f.onclick=null;f.style.transition='';f.style.alignItems='center';f.style.overflow='';
  f.innerHTML=`<div style="font-size:30px;letter-spacing:.06em">𝑻𝒉𝒆 𝑬𝑵𝑫</div>`;
- await fxFade(f,0,1,900);f.onclick=()=>{f.onclick=null;f.style.display='none';f.innerHTML='';FINAL=false;WALK=null;intro=false;p.cl4=false;p.pend=0;try{goTo('neka',MAPS.neka.sx,MAPS.neka.sy)}catch(e){}applyDark();save();finBgm=null;bgmPlay(null,true);B=null;started=false;$('title').style.display='flex';$('bcont').disabled=!hasSave();$('tn').textContent='「つづきから」は、ラスボス挑戦前の状態から再開します'}}
+ await fxFade(f,0,1,900);f.onclick=()=>{f.onclick=null;f.style.display='none';f.innerHTML='';FINAL=false;WALK=null;intro=false;p.cl4=false;p.pend=0;try{goTo('neka',MAPS.neka.sx,MAPS.neka.sy)}catch(e){}applyDark();save();finBgm=null;bgmPlay(null,true);B=null;started=false;$('title').style.display='flex';$('bcont').disabled=!hasSave();$('title').classList.toggle('ns',!hasSave());$('tn').textContent='「つづきから」は、ラスボス挑戦前の状態から再開します'}}
 function cafeTalk(){const n=NP.cafe,d=MAPS.home.dd;box(n.em,n.who);
  say([n.who+(p.rw3?`「${p.name}さん、いつでもネカフェに遊びに来てな」`:p.rw2?(p.gate2||!p.g2?`「チクタクの秘境の入口は、島の${d.tik}のはずれや。${p.name}さん、気ぃつけてな!」`:`「チクタク前のゲートが通れへんのか…。ワイにはわからんけど、敏腕SEさんなら何か知っとるかもしれんで。話を聞いてみたらどうや」`):p.sm<2?`「映えスタの話は、ネカフェの売店の主人に聞いてや。詳しいことを知っとるはずやで」`:!p.gate?`「映えスタの秘境へ行くには、東のゲートを通らなあかんな…。パスワードは、西のオンラインサロンの敏腕SEさんが知っとるかもしれんで」`:cl2?`「${p.name}さん、映えスタの秘境の話、聞かせてや」`:`「映えスタの秘境の入口は、島の${d.ins}のはずれや。無理せんといてな」`)],()=>cmds([['とじる',closeBox]]))}
 function useCard(){const L=Object.keys(CARDN).filter(k=>p.cd&&p.cd[k]).map(k=>[CARDE[k]+CARDN[k],()=>cardTo(k)]);L.push(['もどる',fMenu]);say(['どの会員証を使いますか?'],()=>cmds(L))}
@@ -1029,7 +1040,7 @@ function newGame(){resetWorld();Object.assign(p,P0());applyGate();p.name='お客
   `店員「${p.name}さん、やな。落ち着いて聞いてや。今ネカフェの外が大変なことになっとるんや。」`,
   '店員「扉を出るとSNSの世界になっとって、元の世界には戻られへんのや。」',
   '店員「まずはこのネカフェ内の人達からも事情を聴いたってや。みんなの話を聞いたら、またワイに話しかけてくれや」'],()=>{if(p.ps===0)p.ps=1;save()});
- const talk0=()=>pages('🧑','店員',['店員「……あ、お客さん!気ぃついたか?」','店員「ここはネカフェ…言うても、もう普通の場所やないんやけどな。すまんけど、お名前教えてくれへんか?」'],()=>askName(n=>{p.name=n;if(/^piko/.test(n))p.ps=5;if(n==='piko310'){p.lv=20;p.max=30+6*19;p.hp=p.max;p.mp=1000;p.fol=1000;p.next=nextFor(20);p.tut=1;p.gate=true;applyGate()}else if(n==='piko3'){p.lv=20;p.max=30+6*19;p.hp=p.max;p.mp=1000;p.fol=1000;p.next=nextFor(20);p.tut=1;p.cd={neka:1,hash:1,hae:1};cl=true;cl2=true;p.rw1=true;p.rw2=true;p.gate=true;p.gate2=true;p.hk=2;p.map=true;p.it.drink=5;applyGate()}else if(n==='piko2'){p.lv=10;p.max=30+6*9;p.hp=p.max;p.mp=1000;p.fol=1000;p.next=nextFor(10);p.tut=1;p.cd={neka:1,hash:1,hae:1};cl=true;p.map=true}st();if(n==='piko2')thanks();else if(n==='piko3'){save();fmT=0}else talk0b()}));
+ const talk0=()=>pages('🧑','店員',['店員「……あ、お客さん!気ぃついたか?」','店員「ここはネカフェ…言うても、もう普通の場所やないんやけどな。すまんけど、お名前教えてくれへんか?」'],()=>askName(n=>{p.name=n;st();talk0b()}));
  const m=MAPS.neka,c=(m.npcs||[]).find(o=>o.id==='cafe');
  if(!c){talk0();return}
  const mv=(x,y)=>{m.obj.delete(c.y*m.w+c.x);c.x=x;c.y=y;m.obj.set(y*m.w+x,c)};
@@ -1120,7 +1131,11 @@ function fmUpd(dt){const w=$('fmw'),v=!!(started&&p.map&&!(B&&B.e)&&cur.kind==='
  const key=[cl,cl2,cl3,p.rw1,p.sm,p.hs,p.rw2,dk(),p.cl4,p.gate,p.gate2,p.hk,p.hki,p.g2,p.map,p.ps].join();if(key!==fmKey){fmKey=key;fmBase=fmBuild()}
  const c=$('fmap'),g=c.getContext('2d');g.drawImage(fmBase,0,0);
  g.fillStyle=(Math.floor(performance.now()/400)&1)?'#ff3b3b':'#ffd54a';g.strokeStyle='#fff';g.lineWidth=2;g.beginPath();g.arc(p.x*2+1,p.y*2+1,5,0,7);g.fill();g.stroke()}
-$('bnew').onclick=()=>{$('title').style.display='none';newGame()};
+const tLay=()=>$('title').classList.toggle('ns',!hasSave());tLay();
+ const startNew=()=>{$('title').style.display='none';newGame()};
+ $('bnew').onclick=()=>{if(!hasSave()){startNew();return}
+  const d=document.createElement('div');d.id='tcf';d.innerHTML='<div>セーブデータがあります。<br><b style="color:#ff7b7b">「はじめから」を始めると、<br>いまのセーブデータは消えます。</b><br>本当に消して、はじめからにしますか?</div><button id="tcn">やめる(つづきから)</button><button id="tcy">セーブを消して はじめから</button>';
+  $('title').appendChild(d);$('tcn').onclick=()=>d.remove();$('tcy').onclick=()=>{d.remove();startNew()}};
 $('nok').onclick=()=>{const n=($('nmi').value||'').replace(/[<>&"']/g,'').trim().slice(0,8)||'ユウ';$('nm').style.display='none';if(nameCb)nameCb(n)};
 $('pok').onclick=()=>pwDone(($('pwi').value||'').normalize('NFKC').trim()===(pwKind===2?GATE2_PW:GATE_PW));$('pcn').onclick=()=>pwDone(null);
 $('pwi').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('pok').click()}});
